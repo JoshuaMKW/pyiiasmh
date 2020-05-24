@@ -43,7 +43,7 @@ All:
 All (GUI):
    * Qt 5.x is also required
 
- OR (PySide or PyQt)
+ OR (PyQt)
 
  - PyQt 5.x (or higher; older releases untested/not supported)
    * Qt 5.x is also required; depending on your method of install this may be
