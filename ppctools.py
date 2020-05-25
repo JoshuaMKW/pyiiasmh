@@ -25,6 +25,7 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 import sys
 import time
 import shutil
@@ -102,13 +103,12 @@ def asm_opcodes(tmpdir, txtfile, binfile):
     if binfile is None:
         binfile = tmpdir + "code.bin"
 
-    output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
+    output = subprocess.Popen([eabi["as"], "-a32", "-mbig", "-mregnames", "-mgekko", "-o",
                                tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
     time.sleep(.25)
 
     if output[1]:
-        print(type(output[1]))
         errormsg = str(output[1], encoding="utf-8")
         errormsg = errormsg.replace(txtfile + ":", "")
         errormsg = errormsg.replace(" Assem", "Assem", 1)
@@ -159,7 +159,7 @@ def dsm_geckocodes(tmpdir, txtfile, binfile):
     if output[1]:
         raise RuntimeError(output[1])
 
-    opcodes = format_opcodes(output[0])
+    opcodes = format_opcodes(str(output[0]))
 
     if txtfile is not None:
         try:
@@ -194,35 +194,90 @@ def format_rawhex(rawhex):
 
 def format_opcodes(output):
     # Format the output from vdappc
-    a = []
-    b = []
-    c = []
-    for i in range(len(output.split("\n")) - 1):
-        a.append((output.split("\n"))[i].split("\t", 1)[1])
-        b.append((output.split("\n"))[i])
+    textoutput = []
+    labels = []
+    ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z+-]+)(?:\\t|)([-\w,()]+|)")
+    branch_label = ".loc_0x{}:"
 
-    # Branch instruction fixes
-    for i in range(len(b)):
-        if ("0x" in b[i]) == True:
-            c.append(b[i])
-    for i in range(len(c)):
-        c[i] = c[i][15:].split("\t", 1)[0]
-    for i in range(len(a)):
-        if i == 0:
-            j = 0
-        if ("0x" in a[i]) == True:
-            a[i] = a[i].split("0x")[0]+"0x"+c[j]
-            j = j + 1
+    #Set default first label
+    textoutput.append(branch_label.format("0"))
+
+    for ppc in re.findall(ppc_pattern, output):
+
+        if ppc[2] == "b":
+            SIMM = "{:07X}".format(int(ppc[1][1:], 16) & 0x3FFFFFD)
+        else:
+            SIMM = "{:04X}".format(int(ppc[1][4:], 16) & 0xFFFD)
+
+        #Check for a branch instruction
+        if ppc[2].startswith("b") and "0x" in ppc[3]:
+            #Parse branch instruction to create a label
+            label, positive = assert_label(ppc, branch_label, SIMM)
+            if label and label not in labels and positive == True:
+                labels.append(label)
+            #We need to check for register crap
+            if positive == True:
+                if "," in ppc[3]:
+                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1], ppc[3]))
+                else:
+                    textoutput.append("  " + ppc[2] + " " + label[:-1])
+            else:
+                if "," in ppc[3]:
+                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)), ppc[3]))
+                else:
+                    textoutput.append("  " + ppc[2] + " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)))
+        else:    
+            textoutput.append("  " + ppc[2] + " " + ppc[3])
+
+    #Sort all labels
+    label_set = sorted_alphanumeric(set(labels))
+    #Set up labels in text output
+    for i, label in enumerate(label_set, start=1):
+        labeloffset = re.findall("(?:[0x-])([a-fA-F0-9]+)", label)
+        labelIndex = int(int(labeloffset[0], 16) / 4) + i
+        if labelIndex < len(textoutput) and labelIndex >= 0:
+            textoutput.insert(labelIndex, "\n" + label)
+        elif labelIndex >= 0:
+            textoutput.insert(len(textoutput), "\n" + label)
+        else:
+            textoutput.insert(0, "\n" + label)
 
     # Return the disassembled opcodes
-    return " ".join("\n".join(a).split("\t"))
+    return " ".join("\n".join(textoutput).split("\t"))
 
+def sorted_alphanumeric(l): 
+    """ Sort the given iterable in the way that humans expect.""" 
+    convert = lambda text: int(text) if text.isdigit() else text 
+    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+    return sorted(l, key = alphanum_key)
+
+def sign_extend(value, bytesize):
+    """ Sign extend an int value """
+    if bytesize > 4:
+        if value & (0x3 << ((bytesize) * 4)):
+            return value - (0x4 << (bytesize * 4))
+        else:
+            return value
+    else:
+        if value & (0x8 << ((bytesize - 1) * 4)):
+            return value - (0x10 << (bytesize * 4))
+        else:
+            return value
+    
+
+def assert_label(ppc_list, label, SIMM):
+    SIMM = sign_extend(int(SIMM, 16), len(SIMM) - 1)
+    positive = True
+    #Check if it branches before the start
+    if (int(ppc_list[0], 16) + SIMM) < 0:
+        positive = False
+    return [label.format("{:X}".format(int(ppc_list[0], 16) + SIMM)).replace("-", ""), positive]
 
 def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
     if ctype is None:
         return rawhex
 
-    numlines = ("%x" % len(rawhex.split("\n"))).upper()
+    numlines = ("{:X}".format(len(rawhex.split("\n"))))
     leading_zeros = ["0" * (8 - len(numlines))]
 
     try:
