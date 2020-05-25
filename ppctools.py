@@ -196,14 +196,17 @@ def format_opcodes(output):
     # Format the output from vdappc
     textoutput = []
     labels = []
-    ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z+-]+)(?:\\t|)([-\w,()]+|)")
+    ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z.+-]+)(?:\\t|)([-\w,()]+|)")
     branch_label = ".loc_0x{}:"
+    unsigned_instructions = ["lis", "ori", "oris", "xori", "xoris",
+                             "andi.", "andis."]
+    nonhex_instructions = ["rlwinm", "rlwinm.", "rlwnm" "rlwnm."
+                           "rlwimi", "rlwimi."]
 
     #Set default first label
     textoutput.append(branch_label.format("0"))
 
     for ppc in re.findall(ppc_pattern, output):
-
         if ppc[2] == "b":
             SIMM = "{:07X}".format(int(ppc[1][1:], 16) & 0x3FFFFFD)
         else:
@@ -226,8 +229,24 @@ def format_opcodes(output):
                     textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)), ppc[3]))
                 else:
                     textoutput.append("  " + ppc[2] + " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)))
-        else:    
-            textoutput.append("  " + ppc[2] + " " + ppc[3])
+        else:
+            #Set up cleaner format
+            values = ppc[3]
+            if ppc[2] not in nonhex_instructions:
+                for match in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", ppc[3]):
+                    if "(" in match and ppc[2] not in unsigned_instructions:
+                        match = "0x{:X}(".format(int(match[:-1], 10))
+                        match = re.sub(r"0x-", "-0x", match)
+                    elif ppc[2] not in unsigned_instructions:
+                        match = "0x{:X}".format(int(match, 10))
+                        match = re.sub(r"0x-", "-0x", match)
+                    else:
+                        print("Unsigned Instruction")
+                        match = "0x{:X}".format(int(match, 10))
+                        match = re.sub(r"0x-", "0x", match)
+                    values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", match, ppc[3], count=1)
+                values = re.sub(",", ", ", values)
+            textoutput.append("  " + ppc[2] + " " + values)
 
     #Sort all labels
     label_set = sorted_alphanumeric(set(labels))
@@ -253,6 +272,8 @@ def sorted_alphanumeric(l):
 
 def sign_extend(value, bytesize):
     """ Sign extend an int value """
+    if bytesize == 0:
+        return value
     if bytesize > 4:
         if value & (0x3 << ((bytesize) * 4)):
             return value - (0x4 << (bytesize * 4))

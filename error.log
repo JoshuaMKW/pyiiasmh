@@ -1,8 +1,302 @@
 
-WARNING (2020-05-25 04:00:50,219): No last session found.
+WARNING (2020-05-25 13:52:50,352): No last session found.
 
-WARNING (2020-05-25 04:00:50,219): No last session found.
+WARNING (2020-05-25 13:52:50,352): No last session found.
 
-WARNING (2020-05-25 04:00:50,220): No preferences file found; using defaults.
+WARNING (2020-05-25 13:52:50,353): No preferences file found; using defaults.
 
-WARNING (2020-05-25 04:00:50,220): No preferences file found; using defaults.
+WARNING (2020-05-25 13:52:50,353): No preferences file found; using defaults.
+
+WARNING (2020-05-25 13:57:08,331): No last session found.
+
+WARNING (2020-05-25 13:57:08,331): No last session found.
+
+WARNING (2020-05-25 13:57:08,332): No preferences file found; using defaults.
+
+WARNING (2020-05-25 13:57:08,332): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:03:32,164): No last session found.
+
+WARNING (2020-05-25 14:03:32,164): No last session found.
+
+WARNING (2020-05-25 14:03:32,165): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:03:32,165): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:05:31,963): No last session found.
+
+WARNING (2020-05-25 14:05:31,963): No last session found.
+
+WARNING (2020-05-25 14:05:31,963): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:05:31,963): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:07:39,945): No last session found.
+
+WARNING (2020-05-25 14:07:39,945): No last session found.
+
+WARNING (2020-05-25 14:07:39,945): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:07:39,945): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:09:38,593): No last session found.
+
+WARNING (2020-05-25 14:09:38,593): No last session found.
+
+WARNING (2020-05-25 14:09:38,594): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:09:38,594): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:23:31,455): No last session found.
+
+WARNING (2020-05-25 14:23:31,455): No last session found.
+
+WARNING (2020-05-25 14:23:31,456): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:23:31,456): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:25:06,631): No last session found.
+
+WARNING (2020-05-25 14:25:06,631): No last session found.
+
+WARNING (2020-05-25 14:25:06,632): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:25:06,632): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:28:48,209): No last session found.
+
+WARNING (2020-05-25 14:28:48,209): No last session found.
+
+WARNING (2020-05-25 14:28:48,210): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:28:48,210): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:29:44,826): No last session found.
+
+WARNING (2020-05-25 14:29:44,826): No last session found.
+
+WARNING (2020-05-25 14:29:44,827): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:29:44,827): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:33:39,443): No last session found.
+
+WARNING (2020-05-25 14:33:39,443): No last session found.
+
+WARNING (2020-05-25 14:33:39,444): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:33:39,444): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:36:08,245): No last session found.
+
+WARNING (2020-05-25 14:36:08,245): No last session found.
+
+WARNING (2020-05-25 14:36:08,246): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:36:08,246): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:37:10,578): No last session found.
+
+WARNING (2020-05-25 14:37:10,578): No last session found.
+
+WARNING (2020-05-25 14:37:10,579): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:37:10,579): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:38:34,480): No last session found.
+
+WARNING (2020-05-25 14:38:34,480): No last session found.
+
+WARNING (2020-05-25 14:38:34,481): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:38:34,481): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:43:21,102): No last session found.
+
+WARNING (2020-05-25 14:43:21,102): No last session found.
+
+WARNING (2020-05-25 14:43:21,104): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:43:21,104): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:43:55,500): No last session found.
+
+WARNING (2020-05-25 14:43:55,500): No last session found.
+
+WARNING (2020-05-25 14:43:55,500): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:43:55,500): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:47:12,320): No last session found.
+
+WARNING (2020-05-25 14:47:12,320): No last session found.
+
+WARNING (2020-05-25 14:47:12,321): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:47:12,321): No preferences file found; using defaults.
+
+ERROR (2020-05-25 14:51:00,897): Assembler messages:
+1: Error: Unrecognized opcode: `andis'
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: Unrecognized opcode: `andis'
+
+
+ERROR (2020-05-25 14:51:00,897): Assembler messages:
+1: Error: Unrecognized opcode: `andis'
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: Unrecognized opcode: `andis'
+
+
+ERROR (2020-05-25 14:52:42,680): Assembler messages:
+1: Error: Unrecognized opcode: `oris.'
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: Unrecognized opcode: `oris.'
+
+
+ERROR (2020-05-25 14:52:42,680): Assembler messages:
+1: Error: Unrecognized opcode: `oris.'
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: Unrecognized opcode: `oris.'
+
+
+ERROR (2020-05-25 14:53:56,976): Assembler messages:
+1: Error: operand out of range (0x00009000 is not between 0x00000000 and 0x0000001f)
+1: Error: missing operand
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: operand out of range (0x00009000 is not between 0x00000000 and 0x0000001f)
+1: Error: missing operand
+
+
+ERROR (2020-05-25 14:53:56,976): Assembler messages:
+1: Error: operand out of range (0x00009000 is not between 0x00000000 and 0x0000001f)
+1: Error: missing operand
+Traceback (most recent call last):
+  File "c:\Users\10gra\Desktop\pyiiasmh\pyiiasmh_cli.py", line 75, in assemble
+    geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+  File "c:\Users\10gra\Desktop\pyiiasmh\ppctools.py", line 115, in asm_opcodes
+    raise RuntimeError(errormsg)
+RuntimeError: Assembler messages:
+1: Error: operand out of range (0x00009000 is not between 0x00000000 and 0x0000001f)
+1: Error: missing operand
+
+
+WARNING (2020-05-25 14:55:29,911): No last session found.
+
+WARNING (2020-05-25 14:55:29,911): No last session found.
+
+WARNING (2020-05-25 14:55:29,912): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:55:29,912): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:56:12,990): No last session found.
+
+WARNING (2020-05-25 14:56:12,990): No last session found.
+
+WARNING (2020-05-25 14:56:12,990): No preferences file found; using defaults.
+
+WARNING (2020-05-25 14:56:12,990): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:00:21,651): No last session found.
+
+WARNING (2020-05-25 15:00:21,651): No last session found.
+
+WARNING (2020-05-25 15:00:21,652): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:00:21,652): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:09:39,734): No last session found.
+
+WARNING (2020-05-25 15:09:39,734): No last session found.
+
+WARNING (2020-05-25 15:09:39,734): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:09:39,734): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:12:11,746): No last session found.
+
+WARNING (2020-05-25 15:12:11,746): No last session found.
+
+WARNING (2020-05-25 15:12:11,747): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:12:11,747): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:13:43,216): No last session found.
+
+WARNING (2020-05-25 15:13:43,216): No last session found.
+
+WARNING (2020-05-25 15:13:43,217): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:13:43,217): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:15:21,149): No last session found.
+
+WARNING (2020-05-25 15:15:21,149): No last session found.
+
+WARNING (2020-05-25 15:15:21,150): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:15:21,150): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:19:32,379): No last session found.
+
+WARNING (2020-05-25 15:19:32,379): No last session found.
+
+WARNING (2020-05-25 15:19:32,381): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:19:32,381): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:24:43,796): No last session found.
+
+WARNING (2020-05-25 15:24:43,796): No last session found.
+
+WARNING (2020-05-25 15:24:43,796): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:24:43,796): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:51:39,945): No last session found.
+
+WARNING (2020-05-25 15:51:39,945): No last session found.
+
+WARNING (2020-05-25 15:51:39,947): No preferences file found; using defaults.
+
+WARNING (2020-05-25 15:51:39,947): No preferences file found; using defaults.
+
+WARNING (2020-05-25 16:01:51,808): No last session found.
+
+WARNING (2020-05-25 16:01:51,808): No last session found.
+
+WARNING (2020-05-25 16:01:51,810): No preferences file found; using defaults.
+
+WARNING (2020-05-25 16:01:51,810): No preferences file found; using defaults.
+
+WARNING (2020-05-25 16:02:54,252): No last session found.
+
+WARNING (2020-05-25 16:02:54,252): No last session found.
+
+WARNING (2020-05-25 16:02:54,254): No preferences file found; using defaults.
+
+WARNING (2020-05-25 16:02:54,254): No preferences file found; using defaults.
