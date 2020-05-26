@@ -209,10 +209,10 @@ def format_opcodes(output):
         print(ppc)
         if ppc[2].startswith("b") and "r" not in ppc[2]:
             if ppc[2] == "b" or ppc[2] == "bl":
-                SIMM = sign_extendb(int(ppc[1][1:], 16) & 0x3FFFFFD)
+                SIMM = sign_extendb(int(ppc[1][1:], 16) & 0x3FFFFFC)
             else:
-                SIMM = sign_extend16(int(ppc[1][4:], 16) & 0xFFFD)
-            newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
+                SIMM = sign_extend16(int(ppc[1][4:], 16) & 0xFFFC)
+            newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM)
             #Branch label stuff
             offset = int(ppc[0], 16) + SIMM
             bInRange = offset >= 0 and offset <= len(re.findall(ppc_pattern, output)) << 2
