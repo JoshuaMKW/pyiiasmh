@@ -197,102 +197,93 @@ def format_opcodes(output):
     textoutput = []
     labels = []
     ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z.+-]+)(?:\\t|)([-\w,()]+|)")
-    branch_label = ".loc_0x{}:"
+    branch_label = ".loc_0x{:X}:"
     unsigned_instructions = ["lis", "ori", "oris", "xori", "xoris",
                              "andi.", "andis."]
-    nonhex_instructions = ["rlwinm", "rlwinm.", "rlwnm" "rlwnm."
-                           "rlwimi", "rlwimi."]
-
-    #Set default first label
-    textoutput.append(branch_label.format("0"))
+    nonhex_instructions = ["rlwinm", "rlwinm.", "rlwnm", "rlwnm.",
+                           "rlwimi", "rlwimi.", "crclr" "crxor",
+                           "cror", "crorc", "crand", "crnand",
+                           "crandc", "crnor", "creqv"]
 
     for ppc in re.findall(ppc_pattern, output):
-        if ppc[2] == "b":
-            SIMM = "{:07X}".format(int(ppc[1][1:], 16) & 0x3FFFFFD)
-        else:
-            SIMM = "{:04X}".format(int(ppc[1][4:], 16) & 0xFFFD)
-
-        #Check for a branch instruction
-        if ppc[2].startswith("b") and "0x" in ppc[3]:
-            #Parse branch instruction to create a label
-            label, positive = assert_label(ppc, branch_label, SIMM)
-            if label and label not in labels and positive == True:
+        print(ppc)
+        if ppc[2].startswith("b") and "r" not in ppc[2]:
+            if ppc[2] == "b" or ppc[2] == "bl":
+                SIMM = sign_extendb(int(ppc[1][1:], 16) & 0x3FFFFFD)
+            else:
+                SIMM = sign_extend16(int(ppc[1][4:], 16) & 0xFFFD)
+            newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
+            #Branch label stuff
+            offset = int(ppc[0], 16) + SIMM
+            bInRange = offset >= 0 and offset <= len(re.findall(ppc_pattern, output)) << 2
+            label = branch_label.format(offset & 0xFFFFFFFC)
+            if label and label not in labels and bInRange == True:
                 labels.append(label)
-            #We need to check for register crap
-            if positive == True:
+            if bInRange == True:
                 if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1], ppc[3]))
+                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), ppc[3]))
                 else:
-                    textoutput.append("  " + ppc[2] + " " + label[:-1])
+                    textoutput.append("  " + ppc[2] + " " + label[:-1].rstrip())
             else:
                 if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)), ppc[3]))
+                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), ppc[3]))
                 else:
-                    textoutput.append("  " + ppc[2] + " " + hex(sign_extend(int(SIMM, 16), len(SIMM) - 1)))
+                    textoutput.append("  " + ppc[2] + " " + newSIMM.rstrip())
         else:
             #Set up cleaner format
             values = ppc[3]
             if ppc[2] not in nonhex_instructions:
-                for match in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", ppc[3]):
-                    if "(" in match and ppc[2] not in unsigned_instructions:
-                        match = "0x{:X}(".format(int(match[:-1], 10))
-                        match = re.sub(r"0x-", "-0x", match)
+                for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", ppc[3]):
+                    if "(" in decimal and ppc[2] not in unsigned_instructions:
+                        decimal = "0x{:X}(".format(int(decimal[:-1], 10))
+                        decimal = re.sub(r"0x-", "-0x", decimal)
                     elif ppc[2] not in unsigned_instructions:
-                        match = "0x{:X}".format(int(match, 10))
-                        match = re.sub(r"0x-", "-0x", match)
+                        decimal = "0x{:X}".format(int(decimal, 10))
+                        decimal = re.sub(r"0x-", "-0x", decimal)
                     else:
-                        print("Unsigned Instruction")
-                        match = "0x{:X}".format(int(match, 10))
-                        match = re.sub(r"0x-", "0x", match)
-                    values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", match, ppc[3], count=1)
+                        if int(decimal, 10) < 0:
+                            decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
+                        else:
+                            decimal = "0x{:X}".format(int(decimal, 10))
+                    values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, ppc[3], count=1)
                 values = re.sub(",", ", ", values)
-            textoutput.append("  " + ppc[2] + " " + values)
+            textoutput.append("  " + ppc[2] + " " + values.replace(".word", ".long").rstrip())
 
-    #Sort all labels
-    label_set = sorted_alphanumeric(set(labels))
     #Set up labels in text output
-    for i, label in enumerate(label_set, start=1):
-        labeloffset = re.findall("(?:[0x-])([a-fA-F0-9]+)", label)
-        labelIndex = int(int(labeloffset[0], 16) / 4) + i
+    textoutput.insert(0, branch_label.format(0))
+    for i, label in enumerate(sorted(sorted(labels, key=str), key=len), start=1):
+        labeloffset = re.findall("(?:(-0x|0x))([a-fA-F0-9]+)", label)
+        labelIndex = (int(labeloffset[0][1], 16) >> 2) + i
         if labelIndex < len(textoutput) and labelIndex >= 0:
             textoutput.insert(labelIndex, "\n" + label)
         elif labelIndex >= 0:
-            textoutput.insert(len(textoutput), "\n" + label)
+            textoutput.insert(len(textoutput) - 1, "\n" + label)
         else:
             textoutput.insert(0, "\n" + label)
 
     # Return the disassembled opcodes
     return " ".join("\n".join(textoutput).split("\t"))
 
-def sorted_alphanumeric(l): 
-    """ Sort the given iterable in the way that humans expect.""" 
-    convert = lambda text: int(text) if text.isdigit() else text 
-    alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
-    return sorted(l, key = alphanum_key)
-
-def sign_extend(value, bytesize):
-    """ Sign extend an int value """
-    if bytesize == 0:
-        return value
-    if bytesize > 4:
-        if value & (0x3 << ((bytesize) * 4)):
-            return value - (0x4 << (bytesize * 4))
-        else:
-            return value
+def sign_extend16(value):
+    """ Sign extend a short """
+    if value & 0x8000:
+        return value - 0x10000
     else:
-        if value & (0x8 << ((bytesize - 1) * 4)):
-            return value - (0x10 << (bytesize * 4))
-        else:
-            return value
-    
+        return value
 
-def assert_label(ppc_list, label, SIMM):
-    SIMM = sign_extend(int(SIMM, 16), len(SIMM) - 1)
-    positive = True
-    #Check if it branches before the start
-    if (int(ppc_list[0], 16) + SIMM) < 0:
-        positive = False
-    return [label.format("{:X}".format(int(ppc_list[0], 16) + SIMM)).replace("-", ""), positive]
+def sign_extend32(value):
+    """Sign extend an int """
+    if value & 0x80000000:
+        return value - 0x100000000
+    else:
+        return value
+
+def sign_extendb(value):
+    """Sign extend a b offset"""
+    if value & 0x2000000:
+        return value - 0x4000000
+    else:
+        return value
 
 def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
     if ctype is None:
