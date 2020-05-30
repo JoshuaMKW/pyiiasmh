@@ -1,4 +1,4 @@
-#  PyiiASMH (pyiiasmh.py)
+#  PyiiASMH 3 (pyiiasmh.py)
 #  Copyright (c) 2011, 2012, Sean Power
 #  All rights reserved.
 #
@@ -25,6 +25,7 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 import sys
 import signal
 import logging
@@ -36,9 +37,6 @@ from pyiiasmh_cli import PyiiAsmhApp
 import mainwindow_ui
 import prefs_ui
 
-sip.setapi('QString', 2)
-sip.setapi('QVariant', 2)
-
 class PyiiAsmhGui(PyiiAsmhApp):
 
     def __init__(self):
@@ -49,7 +47,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.uiprefs = None
         self.filename = None
         self.prefs = {"confirm": True, "loadlast": False,
+                      "autodecorate": True, "formalnaming": False,
                       "codetype": "RAW", "qtstyle": "Default"}
+        
         self.default_qtstyle = None
 
     def convert(self, action):
@@ -58,15 +58,26 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         if action == "asm":
             self.geckocodes = self.assemble(self.opcodes, None, None)
+            if self.uiprefs.autodecorate.isChecked() == False and self.ui.codetypeSelect.currentText() == "C0":
+                self.geckocodes = re.sub(r"4E800020 00000000(?!\\n)", "", self.geckocodes)
+                self.geckocodes = self.geckocodes.rstrip("\n")
+                self.geckocodes = re.sub(r"(?<=C0000000 )[0-9a-fA-F]{8}", "{:08X}".format(len(self.geckocodes.split("\n")) - 1), self.geckocodes)
             self.ui.geckocodesPTextEdit.setPlainText(self.geckocodes)
             try:
                 int(self.geckocodes.replace("\n", "").replace(" ", ""), 16)
                 stbar.showMessage("Assembled opcodes into gecko codes.", 3000)
-            except ValueError:
+            except (ValueError, AttributeError, TypeError):
                 stbar.showMessage("Failed to assemble opcodes into gecko codes.", 3000)
         else:
             dsm_out = self.disassemble(self.geckocodes, None, None)
             self.opcodes = dsm_out[0]
+            if self.uiprefs.formalnaming.isChecked() == True:
+                opcodes = []
+                for line in self.opcodes.split("\n"):
+                    values = re.sub(r"(?!c)r1(?![0-9])", "sp", line)
+                    values = re.sub(r"(?!c)r2(?![0-9])", "rtoc", values)
+                    opcodes.append(values)
+                self.opcodes = "\n".join(opcodes)
             self.bapo = dsm_out[1][0]
             self.xor = dsm_out[1][1]
             self.chksum = dsm_out[1][2]
@@ -79,10 +90,16 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.xorLineEdit.setText(self.xor)
             if self.chksum is not None:
                 self.ui.checksumLineEdit.setText(self.chksum)
-            self.radio = {"C0": self.ui.c0Radio,
-                          "C2D2": self.ui.c2d2Radio,
-                          "F2F4": self.ui.f2f4Radio}
-            self.radio.get(self.codetype, self.ui.rawRadio).setChecked(True)
+            if self.codetype == "0616":
+                self.ui.codetypeSelect.setCurrentIndex(1)
+            elif self.codetype == "C0":
+                self.ui.codetypeSelect.setCurrentIndex(0)
+            elif self.codetype == "C2D2":
+                self.ui.codetypeSelect.setCurrentIndex(2)
+            elif self.codetype == "F2F4":
+                self.ui.codetypeSelect.setCurrentIndex(3)
+            else:
+                self.ui.codetypeSelect.setCurrentIndex(4)
             stbar.showMessage("Disassembled gecko codes into opcodes.", 3000)
 
     def get_uivars(self, action):
@@ -94,11 +111,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.chksum = str(self.ui.checksumLineEdit.text())
             self.opcodes = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
 
-            if self.ui.c0Radio.isChecked():
+            if self.ui.codetypeSelect.currentText() == "06/16":
+                self.codetype = "0616"
+            elif self.ui.codetypeSelect.currentText() == "C0":
                 self.codetype = "C0"
-            elif self.ui.c2d2Radio.isChecked():
+            elif self.ui.codetypeSelect.currentText() == "C2/D2":
                 self.codetype = "C2D2"
-            elif self.ui.f2f4Radio.isChecked():
+            elif self.ui.codetypeSelect.currentText() == "F2/F4":
                 self.codetype = "F2F4"
             else:
                 self.codetype = None
@@ -151,7 +170,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 title = "New Session"
                 text = "Are you sure you want to start a new session?"
             else:
-                title = "Quit PyiiASMH"
+                title = "Quit PyiiASMH 3"
                 text = "Are you sure you want to quit?"
 
             if self.confirm_prompt(title, text, inform_text):
@@ -170,13 +189,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
             if sys.platform == "win32":
                 ext += ".txt"
 
-            desc = "PyiiASMH is a cross-platform WiiRd helper tool that "
+            desc = "PyiiASMH 3 is a cross-platform WiiRd helper tool that "
             desc += "is designed to help users with making WiiRd ready ASM "
             desc += "codes. This application supports assembling powerpc "
             desc += "opcodes into WiiRd codes using any of the WiiRd ASM "
-            desc += "codetypes (C0, C2/D2, and F2/F4), or you can assemble "
-            desc += "them into raw hex. Disassembling of WiiRd codes or "
-            desc += "raw hex into PPC assembly opcodes is also supported. "
+            desc += "codetypes (06/16, C0, C2/D2, and F2/F4), or you can "
+            desc += "assemble them into raw hex. Disassembling of WiiRd codes "
+            desc += "or raw hex into PPC assembly opcodes is also supported. "
             desc += "\n\n"
             desc += "Please see the readme (README"+ext+") for more details."
             desc += "\n\n"
@@ -185,7 +204,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             desc += "All rights reserved."
 
             QtWidgets.QMessageBox.about(self.app.activeWindow(),
-                                    "About PyiiASMH", desc)
+                                    "About PyiiASMH 3", desc)
         else:  # dialog_type == "preferences":
             self.uiprefs.show()
 
@@ -200,16 +219,18 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.filename = None
         self.save_prefs()
 
-        if self.prefs.get("codetype") == "C0":
-            self.ui.c0Radio.setChecked(True)
+        if self.prefs.get("codetype") == "06/16":
+            self.ui.codetypeSelect.setCurrentIndex(1)
+        elif self.prefs.get("codetype") == "C0":
+            self.ui.codetypeSelect.setCurrentIndex(0)
         elif self.prefs.get("codetype") == "C2/D2":
-            self.ui.c2d2Radio.setChecked(True)
+            self.ui.codetypeSelect.setCurrentIndex(2)
         elif self.prefs.get("codetype") == "F2/F4":
-            self.ui.f2f4Radio.setChecked(True)
+            self.ui.codetypeSelect.setCurrentIndex(3)
         else:
-            self.ui.rawRadio.setChecked(True)
+            self.ui.codetypeSelect.setCurrentIndex(4)
 
-        self.ui.setWindowTitle("PyiiASMH - untitled")
+        self.ui.setWindowTitle("PyiiASMH 3 - untitled")
         self.ui.statusBar().showMessage("New session started.", 3000)
 
     def open_session(self, reload_file=False):
@@ -218,12 +239,12 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui,
                                                               "Open Session", os.path.expanduser(
                                                                   "~"),
-                                                              "PyiiASMH session files (*.psav);;All files (*)")[0])
+                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
                 fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui,
                                                               "Open Session", os.path.split(
                                                                   self.filename)[0],
-                                                              "PyiiASMH session files (*.psav);;All files (*)")[0])
+                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
             if fname == "":  # Make sure we have something to open
                 return
@@ -249,17 +270,19 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.actionSave.setEnabled(True)
                 self.ui.actionReload.setEnabled(True)
 
-                if data.get("codetype") == "C0":
-                    self.ui.c0Radio.setChecked(True)
+                if data.get("codetype") == "06/16":
+                    self.ui.codetypeSelect.setCurrentIndex(1)
+                elif data.get("codetype") == "C0":
+                    self.ui.codetypeSelect.setCurrentIndex(0)
                 elif data.get("codetype") == "C2/D2":
-                    self.ui.c2d2Radio.setChecked(True)
+                    self.ui.codetypeSelect.setCurrentIndex(2)
                 elif data.get("codetype") == "F2/F4":
-                    self.ui.f2f4Radio.setChecked(True)
+                    self.ui.codetypeSelect.setCurrentIndex(3)
                 else:
-                    self.ui.rawRadio.setChecked(True)
+                    self.ui.codetypeSelect.setCurrentIndex(4)
 
                 self.save_prefs()
-                self.ui.setWindowTitle("PyiiASMH - " +
+                self.ui.setWindowTitle("PyiiASMH 3 - " +
                                        os.path.split(self.filename)[1])
                 self.ui.statusBar().showMessage("Loaded session '" +
                                                 os.path.split(self.filename)[1] + "'.", 3000)
@@ -272,14 +295,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui,
                                                               "Save Session", os.path.expanduser(
                                                                   "~"),
-                                                              "PyiiASMH session files (*.psav);;All files (*)")[0])
+                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
                 fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui,
                                                               "Save Session", os.path.split(
                                                                   self.filename)[0],
-                                                              "PyiiASMH session files (*.psav);;All files (*)")[0])
+                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
-            if fname == "":  # Make sure we have something to open
+            if fname == "" or None:  # Make sure we have something to open
                 return
             else:
                 self.filename = fname
@@ -296,21 +319,23 @@ class PyiiAsmhGui(PyiiAsmhApp):
             data["opcodes"] = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
             data["geckocodes"] = str(self.ui.geckocodesPTextEdit.toPlainText())
 
-            if self.ui.c0Radio.isChecked():
+            if self.uiprefs.codetypeSelect.currentText() == "06/16":
+                data["codetype"] = "06/16"
+            elif self.uiprefs.codetypeSelect.currentText() == "C0":
                 data["codetype"] = "C0"
-            elif self.ui.c2d2Radio.isChecked():
+            elif self.uiprefs.codetypeSelect.currentText() == "C2/D2":
                 data["codetype"] = "C2/D2"
-            elif self.ui.f2f4Radio.isChecked():
+            elif self.uiprefs.codetypeSelect.currentText() == "F2/F4":
                 data["codetype"] = "F2/F4"
             else:
                 data["codetype"] = "RAW"
 
-            cPickle.dump(data, f, 2)
+            cPickle.dump(data, f)
             self.ui.actionSave.setEnabled(True)
             self.ui.actionReload.setEnabled(True)
 
             self.save_prefs()
-            self.ui.setWindowTitle("PyiiASMH - " +
+            self.ui.setWindowTitle("PyiiASMH 3 - " +
                                    os.path.split(self.filename)[1])
             self.ui.statusBar().showMessage("Saved session '" +
                                             os.path.split(self.filename)[1] + "'.", 3000)
@@ -318,7 +343,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
     def load_prefs(self):
         try:
-            f = open(".last.psav", "rb")
+            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "rb")
         except IOError:
             self.log.warning("No last session found.")
         else:
@@ -332,7 +357,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             finally:
                 f.close()
         try:
-            f = open(".PyiiASMH.conf", "rb")
+            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "rb")
         except IOError:
             self.log.warning("No preferences file found; using defaults.")
         else:
@@ -348,15 +373,23 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 if p.get("loadlast") in (True, False):
                     self.prefs["loadlast"] = p.get("loadlast")
 
-                if p.get("codetype") in ("C0", "C2/D2", "F2/F4", "RAW"):
+                if p.get("codetype") in ("06/16", "C0", "C2/D2", "F2/F4", "RAW"):
                     self.prefs["codetype"] = p.get("codetype")
 
+                    if p.get("codetype") == "06/16":
+                        self.uiprefs.codetypeSelect.setCurrentIndex(1)
                     if p.get("codetype") == "C0":
-                        self.ui.c0Radio.setChecked(True)
+                        self.uiprefs.codetypeSelect.setCurrentIndex(0)
                     if p.get("codetype") == "C2/D2":
-                        self.ui.c2d2Radio.setChecked(True)
+                        self.uiprefs.codetypeSelect.setCurrentIndex(2)
                     if p.get("codetype") == "F2/F4":
-                        self.ui.f2f4Radio.setChecked(True)
+                        self.uiprefs.codetypeSelect.setCurrentIndex(3)
+
+                if p.get("formalnaming") in (True, False):
+                    self.prefs["formalnaming"] = p.get("formalnaming")
+                
+                if p.get("autodecorate") in (True, False):
+                    self.prefs["autodecorate"] = p.get("autodecorate")
 
                 if (p.get("qtstyle") in list(QtWidgets.QStyleFactory.keys()) or
                         p.get("qtstyle") == "Default"):
@@ -379,6 +412,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.set_close_event(self.prefs.get("confirm"))
                 self.uiprefs.confirmation.setChecked(self.prefs.get("confirm"))
                 self.uiprefs.loadLast.setChecked(self.prefs.get("loadlast"))
+                self.uiprefs.formalnaming.setChecked(self.prefs.get("formalnaming"))
+                self.uiprefs.autodecorate.setChecked(self.prefs.get("autodecorate"))
             finally:
                 f.close()
 
@@ -386,22 +421,24 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.prefs["confirm"] = self.uiprefs.confirmation.isChecked()
         self.prefs["loadlast"] = self.uiprefs.loadLast.isChecked()
         self.prefs["codetype"] = str(self.uiprefs.codetypeSelect.currentText())
+        self.prefs["formalnaming"] = self.uiprefs.formalnaming.isChecked()
+        self.prefs["autodecorate"] = self.uiprefs.autodecorate.isChecked()
         self.prefs["qtstyle"] = str(self.uiprefs.qtstyleSelect.currentText())
         self.ui.set_close_event(self.prefs.get("confirm"))
 
         try:
-            f = open(".PyiiASMH.conf", "wb")
+            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "wb")
         except IOError as e:
             self.log.exception(e)
         else:
-            cPickle.dump(self.prefs, f, 2)
+            cPickle.dump(self.prefs, f)
             f.close()
         try:
-            f = open(".last.psav", "wb")
+            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "wb")
         except IOError as e:
             self.log.exception(e)
         else:
-            cPickle.dump(self.filename, f, 2)
+            cPickle.dump(self.filename, f)
             f.close()
 
     def load_qtstyle(self, style, first_style_load=False):
@@ -431,7 +468,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             lambda: self.confirm_helper(self.new_session))
         self.ui.actionOpen.triggered.connect(
             lambda: self.confirm_helper(self.open_session))
-        self.ui.actionSave_As.triggered.connect(self.save_session)
+        self.ui.actionSave_As.triggered.connect(lambda: self.save_session(True))
         self.ui.actionReload.triggered.connect(
             lambda: self.confirm_helper(self.open_session, True))
         self.ui.actionSave.triggered.connect(
@@ -442,6 +479,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                                                                 self.uiprefs.qtstyleSelect.currentText()))
 
     def run(self):
+        if not os.path.isdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")):
+            os.mkdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3"))
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
         self.ui = mainwindow_ui.MainWindowUi()  # uic.loadUi("mainwindow.ui")
@@ -454,6 +493,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.load_prefs()
         self.load_qtstyle(self.prefs.get("qtstyle"), True)
         self.ui.opcodesPTextEdit.setFocus()
+        self.ui.codetypeSelect.setCurrentIndex(self.uiprefs.codetypeSelect.currentIndex())
 
         regex = QtCore.QRegExp("[0-9A-Fa-f]*")
         validator = QtGui.QRegExpValidator(regex)

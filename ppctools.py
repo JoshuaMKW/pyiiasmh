@@ -103,23 +103,27 @@ def asm_opcodes(tmpdir, txtfile, binfile):
     if binfile is None:
         binfile = tmpdir + "code.bin"
 
-    output = subprocess.Popen([eabi["as"], "-a32", "-mbig", "-mregnames", "-mgekko", "-o",
+    output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
                                tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
-    time.sleep(.25)
 
     if output[1]:
         errormsg = str(output[1], encoding="utf-8")
-        errormsg = errormsg.replace(txtfile + ":", "")
-        errormsg = errormsg.replace(" Assem", "Assem", 1)
+        errormsg = errormsg.replace(txtfile + ":", "^")[23:]
+
+        with open(txtfile, "r") as asm:
+            assembly = asm.read()
+            for i, index in enumerate(re.findall(r"(?<=\^)\d+", errormsg)):
+                instruction = assembly.split("\n")[int(index, 10) - 1].lstrip()
+                errormsg = re.sub(r"(?<! )\^", enclose_string(instruction) + "\n ^", errormsg + "\n\n", count=1)
+
         raise RuntimeError(errormsg)
 
     subprocess.Popen([eabi["ld"], "-Ttext", "0x80000000", "-o",
-                      tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE)
-    time.sleep(.25)
+                      tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE).communicate()
+
     subprocess.Popen([eabi["objcopy"], "-O", "binary",
-                      tmpdir + "src2.o", binfile], stderr=subprocess.PIPE)
-    time.sleep(.25)
+                      tmpdir + "src2.o", binfile], stderr=subprocess.PIPE).communicate()
 
     rawhex = ""
     try:
@@ -201,9 +205,10 @@ def format_opcodes(output):
     unsigned_instructions = ["lis", "ori", "oris", "xori", "xoris",
                              "andi.", "andis."]
     nonhex_instructions = ["rlwinm", "rlwinm.", "rlwnm", "rlwnm.",
-                           "rlwimi", "rlwimi.", "crclr" "crxor",
+                           "rlwimi", "rlwimi.", "crclr", "crxor",
                            "cror", "crorc", "crand", "crnand",
-                           "crandc", "crnor", "creqv"]
+                           "crandc", "crnor", "creqv", "crse",
+                           "crnot", "crmove"]
 
     for ppc in re.findall(ppc_pattern, output):
         #Branch label stuff
@@ -232,6 +237,7 @@ def format_opcodes(output):
             #Set up cleaner format
             values = ppc[3]
             if ppc[2] not in nonhex_instructions:
+                #Format decimal values to be hex
                 for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", ppc[3]):
                     if "(" in decimal and ppc[2] not in unsigned_instructions:
                         decimal = "0x{:X}(".format(int(decimal[:-1], 10))
@@ -244,9 +250,11 @@ def format_opcodes(output):
                             decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
                         else:
                             decimal = "0x{:X}".format(int(decimal, 10))
-                    values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, ppc[3], count=1)
+                    values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values, count=1)
                 values = re.sub(",", ", ", values)
-            textoutput.append("  " + ppc[2] + " " + values.replace(".word", ".long").rstrip())
+            elif ppc[2] == "crclr" or ppc[2] == "crse":
+                values = re.sub(r",\d", "", values)
+            textoutput.append("  " + ppc[2].replace("word", "long") + " " + values.rstrip())
 
     #Set up labels in text output
     textoutput.insert(0, branch_label.format(0))
@@ -261,7 +269,7 @@ def format_opcodes(output):
             textoutput.insert(0, "\n" + label)
 
     # Return the disassembled opcodes
-    return " ".join("\n".join(textoutput).split("\t"))
+    return "\n".join(textoutput)
 
 def sign_extend16(value):
     """ Sign extend a short """
@@ -284,12 +292,39 @@ def sign_extendb(value):
     else:
         return value
 
+def enclose_string(string):
+    return "-"*(len(string) + 2) + "\n|" + string + "|\n" + "-"*(len(string) + 2)
+
+def alignHeader(rawhex, post, codetype, numbytes):
+    endingZeros = int(numbytes, 16) % 8
+    if codetype == "0616":
+        if endingZeros > 4:
+            post = "00000000 00000000"[1 + endingZeros * 2:]
+        elif endingZeros > 0:
+            post = "00000000 00000000"[endingZeros * 2:]
+        else:
+            post = ""
+    elif codetype == "C0":
+        if endingZeros > 4:
+            post = "00000000 00000000\n4E800020 00000000"[1 + endingZeros * 2:]
+        elif endingZeros > 0:
+            post = "00000000 4E800020"[endingZeros * 2:]
+        elif post == "4E800020 00000000":
+            post = "\n" + post
+    elif codetype in ("C2D2", "F2F4"):
+        if endingZeros > 4:
+            post = "00000000 00000000\n60000000 00000000"[1 + endingZeros * 2:]
+        elif endingZeros > 0:
+            post = "00000000 00000000"[endingZeros * 2:]
+    return rawhex[:-1] + post
+
 def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
     if ctype is None:
         return rawhex
 
-    numlines = ("{:X}".format(len(rawhex.split("\n"))))
-    leading_zeros = ["0" * (8 - len(numlines))]
+    numlines = "{:X}".format(len(rawhex.split("\n")))
+    numbytes = "{:X}".format(len(rawhex.replace("\n", "").replace(" ", "")) >> 1)
+    leading_zeros = ["0" * (8 - len(numlines)), "0" * (8 - len(numbytes))]
 
     try:
         isFailed = False
@@ -299,16 +334,15 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
 
     if isFailed == False:
         if rawhex[-1] == " ":
-            post = "00000000"
+            post = " 00000000"
         else:
-            post = "60000000 00000000"
+            post = "\n60000000 00000000"
 
         if ctype == "C0":
-            pre = "C0000000 %s%s\n" % ("".join(leading_zeros), numlines)
-            post = "4E800020" + post[8:]
-            return pre + rawhex + post
+            pre = "C0000000 {}\n".format("".join(leading_zeros[0]) + numlines)
+            post = "4E800020" + post[-9:]
         else:
-            if bapo[0] not in ("8", "0") or bapo[1] not in ("0", "1"):
+            if bapo[0] not in ("8", "0") or bapo[1] not in ("0", "1") or int(bapo[2], 16) > 7:
                 raise CodetypeError("Invalid bapo '" + bapo[:2] + "'")
 
             pre = {"8": "C", "0": "D"}.get(bapo[0], "C")
@@ -318,25 +352,31 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                 pre += "2" + bapo[2:] + " "
 
             if ctype == "C2D2":
-                pre += "".join(leading_zeros) + numlines + "\n"
-                return pre + rawhex + post
+                pre += "".join(leading_zeros[0]) + numlines + "\n"
+            elif ctype == "0616":
+                pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
+                if bapo[1] == "1":
+                    pre += "7" + bapo[2:] + " "
+                else:
+                    pre += "6" + bapo[2:] + " "
+                pre += "".join(leading_zeros[1]) + numbytes + "\n"
             else:  # ctype == "F2F4"
                 if int(numlines, 16) <= 0xFF:
                     pre = "F" + str(int({"D": "2"}.get(pre[0], "0")) + int(pre[1]))
                     if int(numlines, 16) <= 0xF:
                         numlines = "0"+numlines
 
-                    pre += bapo[2:] + " " + chksum + xor + numlines + "\n"
-                    return pre + rawhex + post
+                    pre += bapo[2:] + " " + "{:02X}".format(int(chksum, 16)) + "{:04X}".format(int(xor, 16)) + numlines + "\n"
                 else:
                     raise CodetypeError("Number of lines (" +
                                         numlines + ") must be lower than 0xFF")
+        return pre + alignHeader(rawhex, post, ctype, numbytes)
     else:
         return rawhex
 
 
 def deconstruct_code(codes):
-    codetypes = ("C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5")
+    codetypes = ("06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5")
     if codes[:2] not in codetypes:
         return (codes, None, None, None, None)
 
@@ -347,7 +387,7 @@ def deconstruct_code(codes):
 
     if codes[:2] != "C0":
         codetype = "C2D2"
-        bapo = {"C": "8", "D": "0", "F": "8"}.get(codes[0], "8")
+        bapo = {"0": "8", "1": "0", "C": "8", "D": "0", "F": "8"}.get(codes[0], "8")
         if codes[1] in ("4", "5"):
             bapo = "0"
         bapo += str(int(codes[1]) % 2) + codes[2:8]
@@ -356,6 +396,8 @@ def deconstruct_code(codes):
             codetype = "F2F4"
             chksum = codes[9:11]
             xor = codes[11:15]
+        elif codes[0] in ("0", "1"):
+            codetype = "0616"
 
     if codes[-17:-9] == "60000000" or codes[-17:] == "4E800020 00000000":
         return (codes[18:-17], bapo, xor, chksum, codetype)

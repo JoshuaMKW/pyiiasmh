@@ -1,6 +1,6 @@
 PyiiASMH:
 	- Sean Power (me) <hawkeye2777[at]gmail[dot]com>
-	- JoshuaMK - Ported to Python 3, and compiled as exe
+	- JoshuaMK - Ported to Python 3, bug fixes, new features
 	
 vdappc & powerpc-eabi:
 	- Their respective authors and those who made changes to them

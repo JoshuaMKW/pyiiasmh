@@ -1,4 +1,4 @@
-#  PyiiASMH (pyiiasmh_cli.py)
+#  PyiiASMH 3 (pyiiasmh_cli.py)
 #  Copyright (c) 2011, 2012, Sean Power
 #  All rights reserved.
 #
@@ -26,6 +26,7 @@
 
 import os
 import sys
+import time
 import shutil
 import logging
 import binascii
@@ -87,7 +88,8 @@ class PyiiAsmhApp(object):
             toReturn = ppctools.construct_code(geckocodes,
                                                self.bapo, self.xor, self.chksum, self.codetype)
 
-        shutil.rmtree(tmpdir)
+        
+        shutil.rmtree(tmpdir, ignore_errors=True)
         return toReturn
 
     def disassemble(self, inputfile, outputfile=None, filetype="text"):
@@ -128,8 +130,8 @@ class PyiiAsmhApp(object):
                 f.write(binascii.a2b_hex(rawhex))
             except IOError:
                 self.log.exception("Failed to write input data to file.")
-            except TypeError as e:
-                self.log.exception(e)
+            except binascii.Error:
+                f.write(b"")
             finally:
                 f.close()
 
@@ -237,7 +239,7 @@ class PyiiAsmhApp(object):
                                      + "expected '-bapo'")
                 elif len(args[4]) != 8 or args[4][:2] not in good_bapo:
                     self.print_usage("'"+args[4]+"' not valid")
-                elif self.codetype == "C2D2":
+                elif self.codetype in ("C2D2", "0616"):
                     int(args[4], 16)
                     self.bapo = args[4]
                     inputfile_argnum = 5

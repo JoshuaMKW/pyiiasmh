@@ -1,5 +1,5 @@
 ###############################################################################
-#               PyiiASMH - Cross-Platform WiiRd ASM Helper Tool               #
+#               PyiiASMH 3 - Cross-Platform WiiRd ASM Helper Tool               #
 ###############################################################################
 
 === Contents ===
@@ -15,10 +15,10 @@
  10. Other
 
 === About ===
-PyiiASMH is a cross-platform WiiRd helper tool that is designed to help users
+PyiiASMH 3 is a cross-platform WiiRd helper tool that is designed to help users
 with making WiiRd ready ASM codes. This application supports assembling powerpc
-opcodes into Gecko codes using any of the Gecko ASM codetypes (C0, C2/D2, and 
-F2/F4), or you can assemble them into raw hex. Disassembling of Gecko codes or 
+opcodes into Gecko codes using any of the Gecko ASM codetypes (06/16, C0, C2/D2,
+and F2/F4), or you can assemble them into raw hex. Disassembling of Gecko codes or 
 raw hex into PPC assembly opcodes is also supported.
 
 === License ===
@@ -32,7 +32,7 @@ their respective licenses.
  - Multiple session support (opening and saving)
  - Two interfaces: a GUI implementation in Qt and a CLI implementation
  - Assemble powerpc opcodes into Gecko codes using any of the ASM 
-     codetypes (C0, C2/D2, F2/F4) or also into plain raw hex
+     codetypes (06/16, C0, C2/D2, F2/F4) or also into plain raw hex
  - Disassemble Gecko codes into powerpc assembly opcodes
  - For more, check out the changelog
 
@@ -63,7 +63,7 @@ Linux and Mac OS X:
 All:
  - GUI: `python pyiiasmh.py'
  - CLI: `python pyiiasmh-cli.py'
-   * Note: some Linux distributions name Python 2 as 'python2' instead
+   * Note: some Linux distributions name Python 3 as 'python3' instead
 
 === Changelog ===
 See the file HISTORY.
@@ -73,11 +73,10 @@ See the file CREDITS.
 
 === Other ===
 Bug reports, feature requests, questions, patches, etc. can be 
-handled at the Google Code Project Web site (link at end of file).
+handled at the github repository: https://github.com/JoshuaMKW/pyiiasmh
 
         ###########################################################
         #          Copyright (c) 2009, 2010, 2011, 2012           #
         #        Sean Power <hawkeye2777[at]gmail[dot]com>        #
         #                  All rights reserved.                   #
-        #     Google Code: http://code.google.com/p/pyiiasmh/     #
         ###########################################################
