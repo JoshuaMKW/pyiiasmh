@@ -310,7 +310,6 @@ class MainWindowUi(QtWidgets.QMainWindow):
         font.setPointSize(10)
         font.setWeight(34)
         self.geckocodesPTextEdit.setFont(font)
-        self.geckocodesPTextEdit.setReadOnly(True)
         self.geckocodesPTextEdit.setObjectName("geckocodesPTextEdit")
         self.geckocodesLayout.addWidget(self.geckocodesPTextEdit, 1, 0, 1, 1)
         self.gridLayout.addLayout(self.geckocodesLayout, 2, 4, 1, 1)
