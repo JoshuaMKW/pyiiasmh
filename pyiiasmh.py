@@ -58,10 +58,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         if action == "asm":
             self.geckocodes = self.assemble(self.opcodes, None, None)
-            if self.uiprefs.autodecorate.isChecked() == False and self.ui.codetypeSelect.currentText() == "C0":
-                self.geckocodes = re.sub(r"4E800020 00000000(?!\\n)", "", self.geckocodes)
-                self.geckocodes = self.geckocodes.rstrip("\n")
-                self.geckocodes = re.sub(r"(?<=C0000000 )[0-9a-fA-F]{8}", "{:08X}".format(len(self.geckocodes.split("\n")) - 1), self.geckocodes)
+            if self.uiprefs.autodecorate.isChecked() == False:
+                if self.ui.codetypeSelect.currentText() == "C0":
+                    if self.geckocodes.endswith("\n4E800020 00000000"):
+                        self.geckocodes = self.geckocodes[:-18]
+                        self.geckocodes = re.sub(r"(?<=C0000000 )[0-9a-fA-F]{8}", "{:08X}".format(len(self.geckocodes.split("\n")) - 1), self.geckocodes)
+                    elif self.geckocodes.endswith("\n4E800020 4E800020"):
+                        self.geckocodes = self.geckocodes[:-8] + "00000000"
             self.ui.geckocodesPTextEdit.setPlainText(self.geckocodes)
             try:
                 int(self.geckocodes.replace("\n", "").replace(" ", ""), 16)
@@ -456,8 +459,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.asmButton.clicked.connect(lambda: self.convert("asm"))
         self.ui.dsmButton.clicked.connect(lambda: self.convert("dsm"))
 
-        self.ui.actionQuit.triggered.connect(
-            lambda: self.confirm_helper(self.ui.close))
+        self.ui.actionQuit.triggered.connect(self.ui.close)
         self.ui.actionPreferences.triggered.connect(self.show_dialog)
         self.ui.actionAbout_Qt.triggered.connect(
             lambda: self.show_dialog("aboutqt"))
@@ -483,8 +485,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
             os.mkdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3"))
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
-        self.ui = mainwindow_ui.MainWindowUi()  # uic.loadUi("mainwindow.ui")
-        self.uiprefs = prefs_ui.PrefsUi()  # uic.loadUi("prefs.ui")
+        self.ui = mainwindow_ui.MainWindowUi()
+        self.uiprefs = prefs_ui.PrefsUi()
 
         self.uiprefs.qtstyleSelect.addItem("Default")
         for i in range(0, len(list(QtWidgets.QStyleFactory.keys()))):
