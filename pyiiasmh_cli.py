@@ -31,6 +31,7 @@ import shutil
 import logging
 import binascii
 import tempfile
+import argparse
 
 import ppctools
 from errors import CodetypeError, UnsupportedOSError
@@ -73,7 +74,7 @@ class PyiiAsmhApp(object):
 
         try:
             toReturn = ""
-            geckocodes = ppctools.asm_opcodes(tmpdir, inputfile, outputfile)
+            machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
         except UnsupportedOSError:
             self.log.exception()
             toReturn = ("Your OS '" + sys.platform + "' is not supported. " +
@@ -85,9 +86,23 @@ class PyiiAsmhApp(object):
             self.log.exception(e)
             toReturn = str(e)
         else:
-            toReturn = ppctools.construct_code(geckocodes,
-                                               self.bapo, self.xor, self.chksum, self.codetype)
+            if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
+                return "Invalid ba/po: {}".format(self.bapo)
+            elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
+                return "Invalid ba/po: {}".format(self.bapo)
 
+            toReturn = ppctools.construct_code(machine_code,
+                                               self.bapo, self.xor, self.chksum, self.codetype).upper()
+            if outputfile is not None:
+                if filetype == 'text':
+                    with open(outputfile, 'w+') as output:
+                        output.write(toReturn)
+                elif filetype == 'bin':
+                    with open(outputfile, 'wb+') as output:
+                        output.write(bytes.fromhex(toReturn.replace('\n', '').replace(' ', '')))
+                else:
+                    with open(outputfile, 'w+') as output:
+                        output.write(toReturn)
         
         shutil.rmtree(tmpdir, ignore_errors=True)
         return toReturn
@@ -137,7 +152,7 @@ class PyiiAsmhApp(object):
 
         try:
             toReturn = ("", (None, None, None, None))
-            opcodes = ppctools.dsm_geckocodes(tmpdir, outputfile, None)
+            opcodes = ppctools.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
             toReturn = (("Your OS '" + sys.platform + "' is not supported. " +
@@ -155,148 +170,102 @@ class PyiiAsmhApp(object):
         shutil.rmtree(tmpdir)
         return toReturn
 
-    def print_usage(self, err=None):
-        if err:
-            print(err+"\n")
-        name = "PyiiASMH-cli"
-
-        print("Usage: " + name + " <command> <options> <input_file> "
-              + "[<output_file>]")
-        print("  or:  " + name + " <command> <options> <input_file> "
-              + "[<output_file>]")
-        print("")
-        print("Commands:")
-        print("    -a, --asm, --assemble\tAssemble ppc opcodes to gecko codes")
-        print("    -d, --dsm, --disassemble\tDisassemble gecko codes to ppc opcodes")
-        print("    -h, --help           \tView this info")
-        print("")
-        print("Options:")
-        print("    -codetype CODETYPE\tThis must come before other options.")
-        print("                      \t  Codetypes: \"C0\", \"C2D2\", \"F2F4\"")
-        print("")
-        print("Options (for -a, --asm, --assemble):")
-        print("    -bapo ADDRESS\tThis is expected next if \"C2D2\" or \"F2F4\" is")
-        print("                 \t  is given for a codetype.")
-        print("    -xor VALUE   \tThis is expected if \"F2F4\" is the codetype.")
-        print("    -chksum VALUE\tThis is expected if \"F2F4\" is the codetype.")
-        print("")
-        print("Options (for -d, --dsm, --disassemble):")
-        print("    -filetype TYPE\tType of the input file to use.")
-        print("                  \t  Filetypes: \"text\" (default), \"bin\"")
-        print("")
-        print("Examples:")
-        print("    "+name+" -a -codetype C0 code.txt out.bin")
-        print("    "+name+" -a -codetype C2D2 -bapo 80DEAD00 code.txt")
-        print("    "+name+" -d input.txt")
-        print("    "+name+" -d -filetype bin input.bin out.txt")
-        print("")
-        print("By default, output will be printed as text to stdout. A file")
-        print("can be specified as an agrument to change this behavior.")
-        print("Output files will be binary when assembling and text when")
-        print("disassembling. Read the README for more details.")
-        sys.exit(1)
-
-    def run(self, args):
-        commands = ("-a", "-d", "-h", "--asm", "--dsm",
-                    "--assemble", "--disassemble", "--help")
-        options = ("-filetype", "-codetype", "-bapo", ("-xor", "-chksum"))
-        filetypes = ("text", "bin")
-        codetypes = ("C0", "C2D2", "F2F4", "RAW")
-        good_bapo = ("80", "81", "00", "01")
-        inputfile_argnum = 1
-        filetype = "text"
-
-        try:
-            # Check for incorrect usage
-            if args[0] not in commands:
-                self.print_usage("Invalid command '"+args[0]+"'")
-            elif args[0] in ("-h", "--help"):
-                self.print_usage()
-
-            elif args[1] != "-codetype":
-                if args[1] == "-filetype":
-                    if args[2] not in filetypes:
-                        self.print_usage("'"+args[2]+"' is invalid filetype")
-
-                    filetype = args[2]
-                    inputfile_argnum = 3
-                    open(args[3], "r").close()
-                else:
-                    open(args[1], "r").close()
-
-            elif args[2].upper() not in codetypes:
-                self.print_usage("Invalid codetype '"+args[2]+"'")
-            elif args[2].upper() == "RAW":
-                open(args[1], "r").close()
-            else:
-                self.codetype = args[2].upper()
-                if self.codetype == "C0":
-                    inputfile_argnum = 3
-                    open(args[3], "r").close()
-
-                elif args[3] != "-bapo":
-                    self.print_usage("Bad option order; "
-                                     + "expected '-bapo'")
-                elif len(args[4]) != 8 or args[4][:2] not in good_bapo:
-                    self.print_usage("'"+args[4]+"' not valid")
-                elif self.codetype in ("C2D2", "0616"):
-                    int(args[4], 16)
-                    self.bapo = args[4]
-                    inputfile_argnum = 5
-                    open(args[5], "r").close()
-                # F2F4
-                elif args[5] not in options[3] or args[7] not in options[3]:
-                    self.print_usage("Error: expected '-xor' or '-chksum'"
-                                     + " ('"+args[5]+"', '"+args[7]+"')")
-                elif args[5] == args[7]:
-                    self.print_usage("Error: duplicate arguments")
-                else:
-                    xornum = 5
-                    chknum = 7
-                    int(args[4], 16)
-                    self.bapo = args[4]
-
-                    if args[7] == "-xor":
-                        xornum = 7
-                        chknum = 5
-
-                    if len(args[xornum+1]) != 4:
-                        self.print_usage("'"+args[xornum+1]+"' not valid")
-                    elif len(args[chknum+1]) != 2:
-                        self.print_usage("'"+args[chknum+1]+"' not valid")
-
-                    int(args[6], 16)
-                    int(args[8], 16)
-                    self.xor = args[xornum+1]
-                    self.chksum = args[chknum+1]
-                    inputfile_argnum = 9
-                    open(args[9], "r").close()
-        except IndexError:
-            self.print_usage()
-        except ValueError:
-            self.print_usage("Invalid hex value")
-        except IOError:
-            self.print_usage(
-                "Input file '"+args[inputfile_argnum]+"' not found")
+    def run(self, filetype='text'):
+        # Check for incorrect usage
+        if args.codetype.upper() == 'RAW':
+            self.codetype = None
         else:
-            try:  # See if user gave output file
-                args[inputfile_argnum+1]
-            except IndexError:  # no output file, print(to stdout
-                if args[0] in ("-a", "--assemble"):
-                    print(self.assemble(args[inputfile_argnum], None,
-                                        filetype))
-                else:
-                    print(self.disassemble(args[inputfile_argnum], None,
-                                           filetype)[0])
-            else:  # output file specified
-                if args[0] in ("-a", "--assemble"):
-                    self.assemble(args[inputfile_argnum],
-                                  args[inputfile_argnum+1], filetype)
-                else:
-                    self.disassemble(args[inputfile_argnum],
-                                     args[inputfile_argnum+1], filetype)
+            self.codetype = args.codetype.upper()
+        self.bapo = args.bapo
+        self.xor = args.xor
+        self.chksum = args.samples
+
+        if args.assemble:
+            if args.dest:
+                self.assemble(args.source, args.dest, filetype=filetype)
+            else:
+                print('\n-----------------\n' + self.assemble(args.source, None, filetype=filetype).strip() + '\n-----------------\n')
+        elif args.disassemble:
+            if args.dest:
+                self.disassemble(args.source, args.dest, filetype=filetype)
+            else:
+                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype)[0].strip() + '\n-----------------\n')
+        else:
+            parser.print_help()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(prog='PyiiASMH 3',
+                                     description='Gecko code compiler for PPC assembly',
+                                     allow_abbrev=False)
+
+    parser.add_argument('source', help='Source file')
+    parser.add_argument('-a', '--assemble',
+                        help='Assemble the target PPC assembly code into machine code',
+                        action='store_true')
+    parser.add_argument('-d', '--disassemble',
+                        help='Disassemble the target machine code into PPC assembly',
+                        action='store_true')
+    parser.add_argument('--dest',
+                        help='Destination file',
+                        metavar='FILE')
+    parser.add_argument('--bapo',
+                        help='Address for the codehook',
+                        default='80000000',
+                        metavar='ADDR')
+    parser.add_argument('--codetype',
+                        help='The codetype being assembled',
+                        choices=['0414', '0616', 'C0', 'C2D2', 'F2F4', 'RAW'],
+                        default='RAW',
+                        metavar='TYPE')
+    parser.add_argument('--xor',
+                        help='The XOR checksum in hex used for the F2/F4 codetype',
+                        default='0000',
+                        metavar='HEXVALUE')
+    parser.add_argument('--samples',
+                        help='''The number of samples in hex to be XORed for the F2/F4 codetype.
+                        If negative, it searches backwards, else forwards''',
+                        default='00',
+                        metavar='HEXCOUNT')
+
+    args = parser.parse_args()
+    dumptype = 'text'
+
+    if args.bapo:
+        try:
+            addr = int(args.bapo, 16)
+            if addr < 0x80000000 or addr >= 0x81800000:
+                if addr < 0 or addr >= 0x01800000:
+                    parser.error('The given ba/po address value {} is invalid'.format(args.bapo))
+        except ValueError:
+            parser.error('The given ba/po address value {} is not a hex value'.format(args.bapo))
+    
+    if args.xor:
+        try:
+            int(args.xor, 16)
+        except ValueError:
+            parser.error('The given XOR value {} is not a hex value'.format(args.xor))
+        if len(args.xor) > 4:
+            parser.error('The given XOR value {} is too large'.format(args.xor))
+
+    if args.samples:
+        try:
+            int(args.samples, 16)
+        except ValueError:
+            parser.error('The given samples value {} is not a hex value'.format(args.samples))
+        if len(args.samples) > 2:
+            parser.error('The given samples value {} is too large'.format(args.samples))
+
+    if args.dest and args.assemble:
+        if args.dest[-4:].lower() == '.txt':
+            dumptype = 'text'
+        elif args.dest[-4:].lower() in ('.bin', '.gct'):
+            dumptype = 'bin'
+        else:
+            parser.error('Destination file {} is invalid type'.format(args.dest))
+    elif args.dest and args.disassemble:
+        if args.dest[-4:].lower() != '.txt':
+            parser.error('Destination file {} is invalid type'.format(args.dest))
+    
     app = PyiiAsmhApp()
-    app.run(sys.argv[1:])
+    app.run(dumptype)

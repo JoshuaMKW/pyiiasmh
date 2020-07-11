@@ -93,16 +93,18 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.xorLineEdit.setText(self.xor)
             if self.chksum is not None:
                 self.ui.checksumLineEdit.setText(self.chksum)
-            if self.codetype == "0616":
+            if self.codetype == "0414":
                 self.ui.codetypeSelect.setCurrentIndex(1)
+            elif self.codetype == "0616":
+                self.ui.codetypeSelect.setCurrentIndex(2)
             elif self.codetype == "C0":
                 self.ui.codetypeSelect.setCurrentIndex(0)
             elif self.codetype == "C2D2":
-                self.ui.codetypeSelect.setCurrentIndex(2)
-            elif self.codetype == "F2F4":
                 self.ui.codetypeSelect.setCurrentIndex(3)
-            else:
+            elif self.codetype == "F2F4":
                 self.ui.codetypeSelect.setCurrentIndex(4)
+            else:
+                self.ui.codetypeSelect.setCurrentIndex(5)
             stbar.showMessage("Disassembled gecko codes into opcodes.", 3000)
 
     def get_uivars(self, action):
@@ -114,7 +116,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.chksum = str(self.ui.checksumLineEdit.text())
             self.opcodes = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
 
-            if self.ui.codetypeSelect.currentText() == "06/16":
+            if self.ui.codetypeSelect.currentText() == "04/14":
+                self.codetype = "0414"
+            elif self.ui.codetypeSelect.currentText() == "06/16":
                 self.codetype = "0616"
             elif self.ui.codetypeSelect.currentText() == "C0":
                 self.codetype = "C0"
@@ -196,7 +200,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             desc += "is designed to help users with making WiiRd ready ASM "
             desc += "codes. This application supports assembling powerpc "
             desc += "opcodes into WiiRd codes using any of the WiiRd ASM "
-            desc += "codetypes (06/16, C0, C2/D2, and F2/F4), or you can "
+            desc += "codetypes (04/14, 06/16, C0, C2/D2, and F2/F4), or you can "
             desc += "assemble them into raw hex. Disassembling of WiiRd codes "
             desc += "or raw hex into PPC assembly opcodes is also supported. "
             desc += "\n\n"
@@ -222,16 +226,18 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.filename = None
         self.save_prefs()
 
-        if self.prefs.get("codetype") == "06/16":
+        if self.prefs.get("codetype") == "04/14":
             self.ui.codetypeSelect.setCurrentIndex(1)
+        elif self.prefs.get("codetype") == "06/16":
+            self.ui.codetypeSelect.setCurrentIndex(2)
         elif self.prefs.get("codetype") == "C0":
             self.ui.codetypeSelect.setCurrentIndex(0)
         elif self.prefs.get("codetype") == "C2/D2":
-            self.ui.codetypeSelect.setCurrentIndex(2)
-        elif self.prefs.get("codetype") == "F2/F4":
             self.ui.codetypeSelect.setCurrentIndex(3)
-        else:
+        elif self.prefs.get("codetype") == "F2/F4":
             self.ui.codetypeSelect.setCurrentIndex(4)
+        else:
+            self.ui.codetypeSelect.setCurrentIndex(5)
 
         self.ui.setWindowTitle("PyiiASMH 3 - untitled")
         self.ui.statusBar().showMessage("New session started.", 3000)
@@ -273,16 +279,18 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.actionSave.setEnabled(True)
                 self.ui.actionReload.setEnabled(True)
 
-                if data.get("codetype") == "06/16":
+                if data.get("codetype") == "04/14":
                     self.ui.codetypeSelect.setCurrentIndex(1)
+                elif data.get("codetype") == "06/16":
+                    self.ui.codetypeSelect.setCurrentIndex(2)
                 elif data.get("codetype") == "C0":
                     self.ui.codetypeSelect.setCurrentIndex(0)
                 elif data.get("codetype") == "C2/D2":
-                    self.ui.codetypeSelect.setCurrentIndex(2)
-                elif data.get("codetype") == "F2/F4":
                     self.ui.codetypeSelect.setCurrentIndex(3)
-                else:
+                elif data.get("codetype") == "F2/F4":
                     self.ui.codetypeSelect.setCurrentIndex(4)
+                else:
+                    self.ui.codetypeSelect.setCurrentIndex(5)
 
                 self.save_prefs()
                 self.ui.setWindowTitle("PyiiASMH 3 - " +
@@ -322,7 +330,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
             data["opcodes"] = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
             data["geckocodes"] = str(self.ui.geckocodesPTextEdit.toPlainText())
 
-            if self.uiprefs.codetypeSelect.currentText() == "06/16":
+            if self.uiprefs.codetypeSelect.currentText() == "04/14":
+                data["codetype"] = "04/14"
+            elif self.uiprefs.codetypeSelect.currentText() == "06/16":
                 data["codetype"] = "06/16"
             elif self.uiprefs.codetypeSelect.currentText() == "C0":
                 data["codetype"] = "C0"
@@ -376,17 +386,19 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 if p.get("loadlast") in (True, False):
                     self.prefs["loadlast"] = p.get("loadlast")
 
-                if p.get("codetype") in ("06/16", "C0", "C2/D2", "F2/F4", "RAW"):
+                if p.get("codetype") in ("04/14", "06/16", "C0", "C2/D2", "F2/F4", "RAW"):
                     self.prefs["codetype"] = p.get("codetype")
 
-                    if p.get("codetype") == "06/16":
+                    if p.get("codetype") == "04/14":
                         self.uiprefs.codetypeSelect.setCurrentIndex(1)
-                    if p.get("codetype") == "C0":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(0)
-                    if p.get("codetype") == "C2/D2":
+                    elif p.get("codetype") == "06/16":
                         self.uiprefs.codetypeSelect.setCurrentIndex(2)
-                    if p.get("codetype") == "F2/F4":
+                    elif p.get("codetype") == "C0":
+                        self.uiprefs.codetypeSelect.setCurrentIndex(0)
+                    elif p.get("codetype") == "C2/D2":
                         self.uiprefs.codetypeSelect.setCurrentIndex(3)
+                    elif p.get("codetype") == "F2/F4":
+                        self.uiprefs.codetypeSelect.setCurrentIndex(4)
 
                 if p.get("formalnaming") in (True, False):
                     self.prefs["formalnaming"] = p.get("formalnaming")

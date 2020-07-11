@@ -162,15 +162,16 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.gridLayoutWidget.setObjectName("gridLayoutWidget")
         self.codetypeSelect = QtWidgets.QComboBox(self.gridLayoutWidget)
         self.codetypeSelect.setObjectName("codetypeSelect")
-        self.codetypeSelect.addItems(["", "", "", "", ""])
+        self.codetypeSelect.addItems(["", "", "", "", "", ""])
 
         self.codetypeSelect.setCurrentIndex(4)
 
         self.codetypeSelect.setItemText(0, QtWidgets.QApplication.translate("MainWindow", "C0", None))
-        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("MainWindow", "06/16", None))
-        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("MainWindow", "C2/D2", None))
-        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("MainWindow", "F2/F4", None))
-        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("MainWindow", "RAW", None))
+        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("MainWindow", "04/14", None))
+        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("MainWindow", "06/16", None))
+        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("MainWindow", "C2/D2", None))
+        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("MainWindow", "F2/F4", None))
+        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("MainWindow", "RAW", None))
 
         self.codetypeLayout.addWidget(self.codetypeSelect, 0, 3, 1, 1)
 
@@ -470,7 +471,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
             self.xorLineEdit.setDisabled(True)
             self.checksumLabel.setDisabled(True)
             self.checksumLineEdit.setDisabled(True)
-        elif self.codetypeSelect.currentText() in ("06/16", "C2/D2"):
+        elif self.codetypeSelect.currentText() in ("04/14", "06/16", "C2/D2"):
             self.bapoLabel.setEnabled(True)
             self.bapoLineEdit.setEnabled(True)
             self.xorLabel.setDisabled(True)
@@ -496,10 +497,11 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.checksumLineEdit.setPlaceholderText(QtWidgets.QApplication.translate("MainWindow", "00", None))
 
         self.codetypeSelect.setItemText(0, QtWidgets.QApplication.translate("Dialog", "C0", None))
-        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("Dialog", "06/16", None))
-        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("Dialog", "C2/D2", None))
-        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
-        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "RAW", None))
+        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("Dialog", "04/14", None))
+        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("Dialog", "06/16", None))
+        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("Dialog", "C2/D2", None))
+        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
+        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("Dialog", "RAW", None))
 
         self.codetypeLabel.setText(QtWidgets.QApplication.translate("MainWindow", "   Code Type", None))
         self.opcodesLabel.setText(QtWidgets.QApplication.translate("MainWindow", "PPC Opcodes", None))

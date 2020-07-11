@@ -92,7 +92,7 @@ class PrefsUi(QtWidgets.QDialog):
         #codetype box
         self.codetypeSelect = QtWidgets.QComboBox(self.gridLayoutWidget)
         self.codetypeSelect.setObjectName("codetypeSelect")
-        self.codetypeSelect.addItems(["", "", "", "", ""])
+        self.codetypeSelect.addItems(["", "", "", "", "", ""])
         self.comboBoxLayout.addWidget(self.codetypeSelect, 0, 1, 1, 1)
 
         #codetype label
@@ -111,7 +111,7 @@ class PrefsUi(QtWidgets.QDialog):
         self.comboBoxLayout.addWidget(self.qtstyleLabel, 1, 0, 1, 1)
 
         self.retranslateUi()
-        self.codetypeSelect.setCurrentIndex(4)
+        self.codetypeSelect.setCurrentIndex(5)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -125,10 +125,11 @@ class PrefsUi(QtWidgets.QDialog):
         self.autodecorate.setText(QtWidgets.QApplication.translate("Dialog", "Use C0 end block", None))
         self.formalnaming.setText(QtWidgets.QApplication.translate("Dialog", "Use \"sp\" and \"rtoc\"", None))
         self.codetypeSelect.setItemText(0, QtWidgets.QApplication.translate("Dialog", "C0", None))
-        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("Dialog", "06/16", None))
-        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("Dialog", "C2/D2", None))
-        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
-        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "RAW", None))
+        self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("Dialog", "04/14", None))
+        self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("Dialog", "06/16", None))
+        self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("Dialog", "C2/D2", None))
+        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
+        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("Dialog", "RAW", None))
         self.codetypeLabel.setText(QtWidgets.QApplication.translate("Dialog", "Default Codetype:", None))
         self.qtstyleLabel.setText(QtWidgets.QApplication.translate("Dialog", "GUI Style:", None))
 

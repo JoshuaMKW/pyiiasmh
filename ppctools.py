@@ -91,17 +91,25 @@ def setup():
     log.addHandler(hdlr)
 
 
-def asm_opcodes(tmpdir, txtfile, binfile):
+def asm_opcodes(tmpdir, txtfile):
     if sys.platform not in ("darwin", "linux2", "win32"):
         raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
+    
     for i in ("as", "ld", "objcopy"):
         if not os.path.isfile(eabi[i]):
             raise IOError(eabi[i] + " not found")
 
     if txtfile is None:
         txtfile = tmpdir + "code.txt"
-    if binfile is None:
-        binfile = tmpdir + "code.bin"
+
+    with open(txtfile, 'r') as asmfile:
+        asm = asmfile.read()
+
+    if not asm.endswith('\n'):
+        with open(txtfile, 'w') as asmfile:
+            asmfile.write(asm + '\n')
+    
+    tmpfile = tmpdir + "code.bin"
 
     output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
                                tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
@@ -123,13 +131,13 @@ def asm_opcodes(tmpdir, txtfile, binfile):
                       tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE).communicate()
 
     subprocess.Popen([eabi["objcopy"], "-O", "binary",
-                      tmpdir + "src2.o", binfile], stderr=subprocess.PIPE).communicate()
+                      tmpdir + "src2.o", tmpfile], stderr=subprocess.PIPE).communicate()
 
     rawhex = ""
     try:
-        f = open(binfile, "rb")
+        f = open(tmpfile, "rb")
     except IOError:
-        log.exception("Failed to open '" + binfile + "'")
+        log.exception("Failed to open '" + tmpfile + "'")
         rawhex = "Failed to compile the asm,\nplease try again.\n"
     else:
         try:
@@ -137,7 +145,7 @@ def asm_opcodes(tmpdir, txtfile, binfile):
             rawhex = f.read().hex()
             rawhex = format_rawhex(rawhex).upper()
         except IOError:
-            log.exception("Failed to read '" + binfile + "'")
+            log.exception("Failed to read '" + tmpfile + "'")
             rawhex = "Failed to read the gecko code,\nplease try again.\n"
         except TypeError as e:
             log.exception(e)
@@ -148,16 +156,15 @@ def asm_opcodes(tmpdir, txtfile, binfile):
         return rawhex
 
 
-def dsm_geckocodes(tmpdir, txtfile, binfile):
+def dsm_geckocodes(tmpdir, txtfile):
     if sys.platform not in ("linux2", "darwin", "win32"):
         raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
     if not os.path.isfile(vdappc):
         raise IOError(vdappc + " not found")
 
-    if binfile is None:
-        binfile = tmpdir + "code.bin"
+    tmpfile = tmpdir + "code.bin"
 
-    output = subprocess.Popen([vdappc, binfile, "0"], stdout=subprocess.PIPE,
+    output = subprocess.Popen([vdappc, tmpfile, "0"], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
 
     if output[1]:
@@ -202,13 +209,13 @@ def format_opcodes(output):
     labels = []
     ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z.+-]+)(?:\\t|)([-\w,()]+|)")
     branch_label = ".loc_0x{:X}:"
-    unsigned_instructions = ["lis", "ori", "oris", "xori", "xoris",
-                             "andi.", "andis."]
-    nonhex_instructions = ["rlwinm", "rlwinm.", "rlwnm", "rlwnm.",
+    unsigned_instructions = ("lis", "ori", "oris", "xori", "xoris",
+                             "andi.", "andis.")
+    nonhex_instructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.",
                            "rlwimi", "rlwimi.", "crclr", "crxor",
                            "cror", "crorc", "crand", "crnand",
                            "crandc", "crnor", "creqv", "crse",
-                           "crnot", "crmove"]
+                           "crnot", "crmove")
 
     for ppc in re.findall(ppc_pattern, output):
         #Branch label stuff
@@ -225,14 +232,14 @@ def format_opcodes(output):
                 labels.append(label)
             if bInRange == True:
                 if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), ppc[3]))
+                    textoutput.append("  " + ppc[2].ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), ppc[3]))
                 else:
-                    textoutput.append("  " + ppc[2] + " " + label[:-1].rstrip())
+                    textoutput.append("  " + ppc[2].ljust(10, " ") + label[:-1].rstrip())
             else:
                 if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2] + " " + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), ppc[3]))
+                    textoutput.append("  " + ppc[2].ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), ppc[3]))
                 else:
-                    textoutput.append("  " + ppc[2] + " " + newSIMM.rstrip())
+                    textoutput.append("  " + ppc[2].ljust(10, " ") + newSIMM.rstrip())
         else:
             #Set up cleaner format
             values = ppc[3]
@@ -254,7 +261,7 @@ def format_opcodes(output):
                 values = re.sub(",", ", ", values)
             elif ppc[2] == "crclr" or ppc[2] == "crse":
                 values = re.sub(r",\d", "", values)
-            textoutput.append("  " + ppc[2].replace("word", "long") + " " + values.rstrip())
+            textoutput.append("  " + ppc[2].replace("word", "long").ljust(10, " ") + values.rstrip())
 
     #Set up labels in text output
     textoutput.insert(0, branch_label.format(0))
@@ -264,7 +271,7 @@ def format_opcodes(output):
         if labelIndex < len(textoutput) and labelIndex >= 0:
             textoutput.insert(labelIndex, "\n" + label)
         elif labelIndex >= 0:
-            textoutput.insert(len(textoutput) - 1, "\n" + label)
+            textoutput.append("\n" + label)
         else:
             textoutput.insert(0, "\n" + label)
 
@@ -342,17 +349,31 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
             pre = "C0000000 {}\n".format("".join(leading_zeros[0]) + numlines)
             post = "4E800020" + post[-9:]
         else:
-            if bapo[0] not in ("8", "0") or bapo[1] not in ("0", "1") or int(bapo[2], 16) > 7:
-                raise CodetypeError("Invalid bapo '" + bapo[:2] + "'")
-
             pre = {"8": "C", "0": "D"}.get(bapo[0], "C")
             if bapo[1] == "1":
                 pre += "3" + bapo[2:] + " "
             else:
                 pre += "2" + bapo[2:] + " "
 
-            if ctype == "C2D2":
-                pre += "".join(leading_zeros[0]) + numlines + "\n"
+            if ctype == "0414":
+                pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
+                if bapo[1] == "1":
+                    pre += "5"
+                else:
+                    pre += "4"
+
+                newhex = ''
+                address = int(bapo, 16)
+
+                for opcodeline in rawhex.split('\n'):
+                    for opcode in opcodeline.split(' '):
+                        if opcode == '':
+                            break
+                        newhex += pre + '{:08X}'.format(address)[2:] + ' ' + opcode + '\n'
+                        address += 4
+
+                return newhex
+
             elif ctype == "0616":
                 pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
                 if bapo[1] == "1":
@@ -360,6 +381,10 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                 else:
                     pre += "6" + bapo[2:] + " "
                 pre += "".join(leading_zeros[1]) + numbytes + "\n"
+
+            elif ctype == "C2D2":
+                pre += "".join(leading_zeros[0]) + numlines + "\n"
+
             else:  # ctype == "F2F4"
                 if int(numlines, 16) <= 0xFF:
                     pre = "F" + str(int({"D": "2"}.get(pre[0], "0")) + int(pre[1]))
@@ -376,7 +401,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
 
 
 def deconstruct_code(codes):
-    codetypes = ("06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5")
+    codetypes = ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5")
     if codes[:2] not in codetypes:
         return (codes, None, None, None, None)
 
@@ -388,7 +413,7 @@ def deconstruct_code(codes):
     if codes[:2] != "C0":
         codetype = "C2D2"
         bapo = {"0": "8", "1": "0", "C": "8", "D": "0", "F": "8"}.get(codes[0], "8")
-        if codes[1] in ("4", "5"):
+        if codes[1] in ("4", "5") and codes[0] == "F":
             bapo = "0"
         bapo += str(int(codes[1]) % 2) + codes[2:8]
 
@@ -396,13 +421,27 @@ def deconstruct_code(codes):
             codetype = "F2F4"
             chksum = codes[9:11]
             xor = codes[11:15]
-        elif codes[0] in ("0", "1"):
+        elif codes[:2] in ("06", "07", "16", "17"):
             codetype = "0616"
+        elif codes[:2] in ("04", "05", "14", "15"):
+            codetype = "0414"
+
+    if codetype == "0616":
+        return (codes[18:], bapo, xor, chksum, codetype)
+    elif codetype == "0414":
+        fcodes = ""
+        for i, line in enumerate(codes.split("\n")):
+            fcodes += line[9:]
+            if i % 2 == 0:
+                fcodes += " "
+            else:
+                fcodes += "\n"
+        return (fcodes.strip(), bapo, xor, chksum, codetype)
 
     if codes[-17:-9] == "60000000" or codes[-17:] == "4E800020 00000000":
         return (codes[18:-17], bapo, xor, chksum, codetype)
     else:
         return (codes[18:-9], bapo, xor, chksum, codetype)
 
-
+#Setup the program
 setup()
