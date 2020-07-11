@@ -427,7 +427,13 @@ def deconstruct_code(codes):
             codetype = "0414"
 
     if codetype == "0616":
-        return (codes[18:], bapo, xor, chksum, codetype)
+        length = int(codes[9:17], 16)
+        newindex = (length + 3) & -4
+        if newindex % 8 == 0:
+            return (codes[18:], bapo, xor, chksum, codetype)
+        else:
+            return (codes[18:-9], bapo, xor, chksum, codetype)
+
     elif codetype == "0414":
         fcodes = ""
         for i, line in enumerate(codes.split("\n")):

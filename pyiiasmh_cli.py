@@ -119,10 +119,10 @@ class PyiiAsmhApp(object):
                     f = open(inputfile, "rb")
                 else:
                     f = open(inputfile, "r")
-            except IOError:
+            except IOError as e:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
-                return None
+                return ("Error: " + str(e), (None, None, None, None))
             else:
                 try:
                     f.seek(0)
