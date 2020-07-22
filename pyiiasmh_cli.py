@@ -86,10 +86,11 @@ class PyiiAsmhApp(object):
             self.log.exception(e)
             toReturn = str(e)
         else:
-            if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
-                return "Invalid ba/po: {}".format(self.bapo)
-            elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
-                return "Invalid ba/po: {}".format(self.bapo)
+            if self.bapo is not None:
+                if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
+                    return "Invalid ba/po: {}".format(self.bapo)
+                elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
+                    return "Invalid ba/po: {}".format(self.bapo)
 
             toReturn = ppctools.construct_code(machine_code,
                                                self.bapo, self.xor, self.chksum, self.codetype).upper()
