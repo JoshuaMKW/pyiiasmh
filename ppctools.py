@@ -47,6 +47,47 @@ def resource_path(relative_path):
         os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
+def sanitizeLabel(label):
+    label = label.strip()
+    sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
+    whitespace = " \n\t\r"
+    iscomment = False
+    isparen = False
+
+    newstr = []
+    for i, char in enumerate(label):
+
+        if char == "#": iscomment = True
+        if char == "(" and iscomment == False: isparen = True
+        if char == ")": isparen = False
+
+        if char not in sanitize_list and char not in sanitize_list.upper():
+            if isparen == True:
+                if char == "," or char == " ":
+                    newstr.append("_")
+                    continue
+
+            if i+1 < len(label):
+                if char in ":," and label[i+1] in whitespace:
+                    newstr.append(char)
+                elif char in whitespace:
+                    newstr.append(char)
+                else:
+                    newstr.append("_")
+            else:
+                if iscomment or char in whitespace or char in ":,":
+                    newstr.append(char)
+                else:
+                    newstr.append("_")
+        else:
+            newstr.append(char)
+
+    newstr = "".join(newstr)
+    if newstr.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")):
+        return newstr[1:]
+    else:
+        return newstr
+
 
 def setup():
     global eabi, vdappc, log
@@ -304,26 +345,29 @@ def enclose_string(string):
 
 def alignHeader(rawhex, post, codetype, numbytes):
     endingZeros = int(numbytes, 16) % 8
-    if codetype == "0616":
+    if codetype == "0414":
+        post = "00000000"[:(4 - endingZeros)*2]
+        print(f"post={post}, endingZeros={endingZeros}")
+    elif codetype == "0616":
         if endingZeros > 4:
-            post = "00000000 00000000"[1 + endingZeros * 2:]
+            post = "00000000 00000000"[1 + endingZeros*2:]
         elif endingZeros > 0:
-            post = "00000000 00000000"[endingZeros * 2:]
+            post = "00000000 00000000"[endingZeros*2:]
         else:
             post = ""
     elif codetype == "C0":
         if endingZeros > 4:
-            post = "00000000 00000000\n4E800020 00000000"[1 + endingZeros * 2:]
+            post = "00000000 00000000\n4E800020 00000000"[1 + endingZeros*2:]
         elif endingZeros > 0:
-            post = "00000000 4E800020"[endingZeros * 2:]
+            post = "00000000 4E800020"[endingZeros*2:]
         elif post == "4E800020 00000000":
             post = "\n" + post
     elif codetype in ("C2D2", "F2F4"):
         if endingZeros > 4:
-            post = "00000000 00000000\n60000000 00000000"[1 + endingZeros * 2:]
+            post = "00000000 00000000\n60000000 00000000"[1 + endingZeros*2:]
         elif endingZeros > 0:
-            post = "00000000 00000000"[endingZeros * 2:]
-    return rawhex[:-1] + post
+            post = "00000000 00000000"[endingZeros*2:]
+    return rawhex + post
 
 def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
     if ctype is None:
@@ -363,13 +407,13 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                     pre += "4"
 
                 newhex = ''
-                address = int(bapo, 16)
+                address = int(bapo, 16) & 0xFFFFFF
 
                 for opcodeline in rawhex.split('\n'):
                     for opcode in opcodeline.split(' '):
                         if opcode == '':
                             break
-                        newhex += pre + '{:08X}'.format(address)[2:] + ' ' + opcode + '\n'
+                        newhex += pre + '{:06X}'.format(address) + ' ' + alignHeader(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
                         address += 4
 
                 return newhex
@@ -395,7 +439,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                 else:
                     raise CodetypeError("Number of lines (" +
                                         numlines + ") must be lower than 0xFF")
-        return pre + alignHeader(rawhex, post, ctype, numbytes)
+        return pre + alignHeader(rawhex[:-1], post, ctype, numbytes)
     else:
         return rawhex
 
