@@ -25,6 +25,7 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
+import re
 import sys
 import time
 import shutil
@@ -55,30 +56,24 @@ class PyiiAsmhApp(object):
         self.log.addHandler(hdlr)
 
     def assemble(self, inputfile, outputfile=None, filetype="text"):
-        tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-") + os.path.normcase("/")
+        tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
 
         if filetype is None:
             try:
-                f = open(tmpdir+"code.txt", "w")
+                with open(os.path.join(tmpdir, "code.txt"), "w") as f:
+                    f.write(inputfile)
+                inputfile = None
             except IOError:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
                 return None
-            else:
-                try:
-                    f.seek(0)
-                    f.write(inputfile)
-                finally:
-                    f.close()
-                inputfile = None
 
         try:
             toReturn = ""
             machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
         except UnsupportedOSError:
             self.log.exception()
-            toReturn = ("Your OS '" + sys.platform + "' is not supported. " +
-                        "See 'error.log' for details and also read the README.")
+            toReturn = ("Your OS '" + sys.platform + "' is not supported. See 'error.log' for details and also read the README.")
         except IOError as e:
             self.log.exception(e)
             toReturn = "Error: " + str(e)
@@ -108,51 +103,42 @@ class PyiiAsmhApp(object):
         shutil.rmtree(tmpdir, ignore_errors=True)
         return toReturn
 
-    def disassemble(self, inputfile, outputfile=None, filetype="text"):
-        tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-") + os.path.normcase("/")
+    def disassemble(self, inputfile, outputfile=None, filetype="text", cFooter=True, formalNames=False):
+        tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
         codes = None
+
+        if filetype == "bin":
+            access = "rb"
+        else:
+            access = "r"
 
         if filetype is None:
             codes = inputfile
         else:
             try:
-                if filetype == "bin":
-                    f = open(inputfile, "rb")
-                else:
-                    f = open(inputfile, "r")
+                with open(inputfile, access) as f:
+                    codes = "".join(f.readlines())
+                    if filetype == "bin":
+                        codes = binascii.b2a_hex(codes).upper()
             except IOError as e:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
-                return ("Error: " + str(e), (None, None, None, None))
-            else:
-                try:
-                    f.seek(0)
-                    codes = "".join(f.readlines())
-                    if filetype == "bin":
-                        codes = binascii.b2a_hex("".join(codes)).upper()
-                finally:
-                    f.close()
+                return ["Error: " + str(e), (None, None, None, None)]
 
-        rawcodes = ppctools.deconstruct_code(codes)
+        rawcodes = ppctools.deconstruct_code(codes, cFooter)
 
         try:
-            f = open(tmpdir+"code.bin", "wb")
+            with open(os.path.join(tmpdir, "code.bin"), "wb") as f:
+                rawhex = "".join("".join(rawcodes[0].split("\n")).split(" "))
+                try:
+                    f.write(binascii.a2b_hex(rawhex))
+                except binascii.Error:
+                    f.write(b"")
         except IOError:
             self.log.exception("Failed to open temp file.")
-        else:
-            try:
-                f.seek(0)
-                rawhex = "".join("".join(rawcodes[0].split("\n")).split(" "))
-                f.write(binascii.a2b_hex(rawhex))
-            except IOError:
-                self.log.exception("Failed to write input data to file.")
-            except binascii.Error:
-                f.write(b"")
-            finally:
-                f.close()
 
         try:
-            toReturn = ("", (None, None, None, None))
+            toReturn = ["", (None, None, None, None)]
             opcodes = ppctools.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
@@ -166,9 +152,18 @@ class PyiiAsmhApp(object):
             self.log.exception(e)
             toReturn = (str(e), (None, None, None, None))
         else:
-            toReturn = (opcodes + "\n", rawcodes[1:])
+            toReturn = [opcodes + "\n", rawcodes[1:]]
+
+        if formalNames:
+            opcodes = []
+            for line in toReturn[0].split("\n"):
+                values = re.sub(r"(?!c)r1(?![0-9])", "sp", line)
+                values = re.sub(r"(?!c)r2(?![0-9])", "rtoc", values)
+                opcodes.append(values)
+            toReturn[0] = "\n".join(opcodes)
 
         shutil.rmtree(tmpdir)
+
         return toReturn
 
     def run(self, filetype='text'):
@@ -188,9 +183,9 @@ class PyiiAsmhApp(object):
                 print('\n-----------------\n' + self.assemble(args.source, None, filetype=filetype).strip() + '\n-----------------\n')
         elif args.disassemble:
             if args.dest:
-                self.disassemble(args.source, args.dest, filetype=filetype)
+                self.disassemble(args.source, args.dest, filetype=filetype, cHeader=args.rmfooterasm, formalnames=args.formalnames)
             else:
-                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype)[0].strip() + '\n-----------------\n')
+                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype, cHeader=args.rmfooterasm, formalnames=args.formalnames)[0].strip() + '\n-----------------\n')
         else:
             parser.print_help()
 
@@ -228,6 +223,12 @@ if __name__ == "__main__":
                         If negative, it searches backwards, else forwards''',
                         default='00',
                         metavar='HEXCOUNT')
+    parser.add_argument('--formalnames',
+                        help='Names r1 and r2 to be sp and rtoc respectively',
+                        action='store_true')
+    parser.add_argument('--rmfooterasm',
+                        help='Removes the footer from a C0 block if possible, only useful if your code already contains an exit point',
+                        action='store_true')
 
     args = parser.parse_args()
     dumptype = 'text'

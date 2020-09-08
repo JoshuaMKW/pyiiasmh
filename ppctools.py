@@ -48,11 +48,12 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 def sanitizeLabel(label):
-    label = label.strip()
+    label = label.rstrip()
     sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
     whitespace = " \n\t\r"
     iscomment = False
     isparen = False
+    isinstruction = True
 
     newstr = []
     for i, char in enumerate(label):
@@ -61,11 +62,17 @@ def sanitizeLabel(label):
         if char == "(" and iscomment == False: isparen = True
         if char == ")": isparen = False
 
-        if char not in sanitize_list and char not in sanitize_list.upper():
-            if isparen == True:
-                if char == "," or char == " ":
-                    newstr.append("_")
-                    continue
+        if i > 0 and char in whitespace and label[i-1] not in whitespace:
+            isinstruction = False
+
+        if char not in sanitize_list and char not in sanitize_list.upper() and not iscomment:
+            if isparen and char in ", ":
+                newstr.append("_")
+                continue
+
+            if isinstruction and char in "-+":
+                newstr.append(char)
+                continue
 
             if i+1 < len(label):
                 if char in ":," and label[i+1] in whitespace:
@@ -75,7 +82,7 @@ def sanitizeLabel(label):
                 else:
                     newstr.append("_")
             else:
-                if iscomment or char in whitespace or char in ":,":
+                if char in whitespace or char in ":,":
                     newstr.append(char)
                 else:
                     newstr.append("_")
@@ -138,19 +145,20 @@ def asm_opcodes(tmpdir, txtfile):
     
     for i in ("as", "ld", "objcopy"):
         if not os.path.isfile(eabi[i]):
-            raise IOError(eabi[i] + " not found")
+            raise FileNotFoundError(eabi[i] + " not found")
 
     if txtfile is None:
-        txtfile = tmpdir + "code.txt"
+        txtfile = os.path.join(tmpdir, "code.txt")
 
-    with open(txtfile, 'r') as asmfile:
-        asm = asmfile.read()
-
-    if not asm.endswith('\n'):
-        with open(txtfile, 'w') as asmfile:
-            asmfile.write(asm + '\n')
+    with open(txtfile, 'r+') as asmfile:
+        print(asmfile.read() + "\n")
+        asmfile.seek(0)
+        asm = "\n".join([sanitizeLabel(line) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n") for line in asmfile]) + "\n"
+        print(asm)
+        asmfile.seek(0)
+        asmfile.write(asm)
     
-    tmpfile = tmpdir + "code.bin"
+    tmpfile = os.path.join(tmpdir, "code.bin")
 
     output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
                                tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
@@ -176,34 +184,27 @@ def asm_opcodes(tmpdir, txtfile):
 
     rawhex = ""
     try:
-        f = open(tmpfile, "rb")
+        with open(tmpfile, "rb") as f:
+            try:
+                rawhex = f.read().hex()
+                rawhex = format_rawhex(rawhex).upper()
+            except TypeError as e:
+                log.exception(e)
+                rawhex = "The compile was corrupt,\nplease try again.\n"
     except IOError:
         log.exception("Failed to open '" + tmpfile + "'")
         rawhex = "Failed to compile the asm,\nplease try again.\n"
-    else:
-        try:
-            f.seek(0)
-            rawhex = f.read().hex()
-            rawhex = format_rawhex(rawhex).upper()
-        except IOError:
-            log.exception("Failed to read '" + tmpfile + "'")
-            rawhex = "Failed to read the gecko code,\nplease try again.\n"
-        except TypeError as e:
-            log.exception(e)
-            rawhex = "The compile was corrupt,\nplease try again.\n"
-        finally:
-            f.close()
-    finally:
-        return rawhex
+
+    return rawhex
 
 
 def dsm_geckocodes(tmpdir, txtfile):
     if sys.platform not in ("linux2", "darwin", "win32"):
         raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
     if not os.path.isfile(vdappc):
-        raise IOError(vdappc + " not found")
+        raise FileNotFoundError(vdappc + " not found")
 
-    tmpfile = tmpdir + "code.bin"
+    tmpfile = os.path.join(tmpdir, "code.bin")
 
     output = subprocess.Popen([vdappc, tmpfile, "0"], stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
@@ -215,16 +216,10 @@ def dsm_geckocodes(tmpdir, txtfile):
 
     if txtfile is not None:
         try:
-            f = open(txtfile, "w")
+            with open(txtfile, "w") as f:
+                f.write(opcodes + "\n")
         except IOError:
             log.exception("Failed to open '" + txtfile + "'")
-        else:
-            try:
-                f.write(opcodes + "\n")
-            except IOError:
-                log.exception("Failed to write to '" + txtfile + "'")
-            finally:
-                f.close()
 
     return opcodes
 
@@ -235,7 +230,6 @@ def format_rawhex(rawhex):
 
     for i in range(0, len(rawhex), 8):
         code.append(rawhex[i:(i+8)])
-
     for i in range(1, len(code), 2):
         code[i] += "\n"
     for i in range(0, len(code), 2):
@@ -246,51 +240,50 @@ def format_rawhex(rawhex):
 
 def format_opcodes(output):
     # Format the output from vdappc
-    textoutput = []
+    textOutput = []
     labels = []
-    ppc_pattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z.+-]+)(?:\\t|)([-\w,()]+|)")
-    branch_label = ".loc_0x{:X}:"
-    unsigned_instructions = ("lis", "ori", "oris", "xori", "xoris",
-                             "andi.", "andis.")
-    nonhex_instructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.",
-                           "rlwimi", "rlwimi.", "crclr", "crxor",
-                           "cror", "crorc", "crand", "crnand",
-                           "crandc", "crnor", "creqv", "crse",
-                           "crnot", "crmove")
+    ppcPattern = re.compile(r"(?:b'|\\r\\n)([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\\t)([a-zA-Z.+-]+)(?:\\t|)([-\w,()]+|)")
+    branchLabel = ".loc_0x{:X}:"
+    unsignedInstructions = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
+    nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
+                          "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
 
-    for ppc in re.findall(ppc_pattern, output):
+    for _ppcOffset, _ppcData, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, output):
         #Branch label stuff
-        if ppc[2].startswith("b") and "r" not in ppc[2]:
-            if ppc[2] == "b" or ppc[2] == "bl":
-                SIMM = sign_extendb(int(ppc[1][1:], 16) & 0x3FFFFFC)
+        if _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
+            if _ppcInstruction == "b" or _ppcInstruction == "bl":
+                SIMM = sign_extendb(int(_ppcData[1:], 16) & 0x3FFFFFC)
             else:
-                SIMM = sign_extend16(int(ppc[1][4:], 16) & 0xFFFC)
+                SIMM = sign_extend16(int(_ppcData[4:], 16) & 0xFFFC)
+
             newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
-            offset = int(ppc[0], 16) + SIMM
-            bInRange = offset >= 0 and offset <= len(re.findall(ppc_pattern, output)) << 2
-            label = branch_label.format(offset & 0xFFFFFFFC)
+            offset = int(_ppcOffset, 16) + SIMM
+            bInRange = offset >= 0 and offset <= len(re.findall(ppcPattern, output)) << 2
+            label = branchLabel.format(offset & 0xFFFFFFFC)
+
             if label and label not in labels and bInRange == True:
                 labels.append(label)
+
             if bInRange == True:
-                if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2].ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), ppc[3]))
+                if "," in _ppcSIMM:
+                    textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), _ppcSIMM))
                 else:
-                    textoutput.append("  " + ppc[2].ljust(10, " ") + label[:-1].rstrip())
+                    textOutput.append("  " + _ppcInstruction.ljust(10, " ") + label[:-1].rstrip())
             else:
-                if "," in ppc[3]:
-                    textoutput.append("  " + ppc[2].ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), ppc[3]))
+                if "," in _ppcSIMM:
+                    textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), _ppcSIMM))
                 else:
-                    textoutput.append("  " + ppc[2].ljust(10, " ") + newSIMM.rstrip())
+                    textOutput.append("  " + _ppcInstruction.ljust(10, " ") + newSIMM.rstrip())
         else:
             #Set up cleaner format
-            values = ppc[3]
-            if ppc[2] not in nonhex_instructions:
+            values = _ppcSIMM
+            if _ppcInstruction not in nonhexInstructions:
                 #Format decimal values to be hex
-                for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", ppc[3]):
-                    if "(" in decimal and ppc[2] not in unsigned_instructions:
+                for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", _ppcSIMM):
+                    if "(" in decimal and _ppcInstruction not in unsignedInstructions:
                         decimal = "0x{:X}(".format(int(decimal[:-1], 10))
                         decimal = re.sub(r"0x-", "-0x", decimal)
-                    elif ppc[2] not in unsigned_instructions:
+                    elif _ppcInstruction not in unsignedInstructions:
                         decimal = "0x{:X}".format(int(decimal, 10))
                         decimal = re.sub(r"0x-", "-0x", decimal)
                     else:
@@ -300,24 +293,27 @@ def format_opcodes(output):
                             decimal = "0x{:X}".format(int(decimal, 10))
                     values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values, count=1)
                 values = re.sub(",", ", ", values)
-            elif ppc[2] == "crclr" or ppc[2] == "crse":
+
+            elif _ppcInstruction == "crclr" or _ppcInstruction == "crse":
                 values = re.sub(r",\d", "", values)
-            textoutput.append("  " + ppc[2].replace("word", "long").ljust(10, " ") + values.rstrip())
+
+            textOutput.append("  " + _ppcInstruction.replace("word", "long").ljust(10, " ") + values.rstrip())
 
     #Set up labels in text output
-    textoutput.insert(0, branch_label.format(0))
+    textOutput.insert(0, branchLabel.format(0))
     for i, label in enumerate(sorted(sorted(labels, key=str), key=len), start=1):
-        labeloffset = re.findall("(?:(-0x|0x))([a-fA-F0-9]+)", label)
-        labelIndex = (int(labeloffset[0][1], 16) >> 2) + i
-        if labelIndex < len(textoutput) and labelIndex >= 0:
-            textoutput.insert(labelIndex, "\n" + label)
+        labelOffset = re.findall("(?:(-0x|0x))([a-fA-F0-9]+)", label)
+        labelIndex = (int(labelOffset[0][1], 16) >> 2) + i
+
+        if labelIndex < len(textOutput) and labelIndex >= 0:
+            textOutput.insert(labelIndex, "\n" + label)
         elif labelIndex >= 0:
-            textoutput.append("\n" + label)
+            textOutput.append("\n" + label)
         else:
-            textoutput.insert(0, "\n" + label)
+            textOutput.insert(0, "\n" + label)
 
     # Return the disassembled opcodes
-    return "\n".join(textoutput)
+    return "\n".join(textOutput)
 
 def sign_extend16(value):
     """ Sign extend a short """
@@ -345,9 +341,9 @@ def enclose_string(string):
 
 def alignHeader(rawhex, post, codetype, numbytes):
     endingZeros = int(numbytes, 16) % 8
+
     if codetype == "0414":
         post = "00000000"[:(4 - endingZeros)*2]
-        print(f"post={post}, endingZeros={endingZeros}")
     elif codetype == "0616":
         if endingZeros > 4:
             post = "00000000 00000000"[1 + endingZeros*2:]
@@ -413,7 +409,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                     for opcode in opcodeline.split(' '):
                         if opcode == '':
                             break
-                        newhex += pre + '{:06X}'.format(address) + ' ' + alignHeader(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
+                        newhex += pre + '{:06X} '.format(address) + alignHeader(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
                         address += 4
 
                 return newhex
@@ -437,16 +433,14 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
 
                     pre += bapo[2:] + " " + "{:02X}".format(int(chksum, 16)) + "{:04X}".format(int(xor, 16)) + numlines + "\n"
                 else:
-                    raise CodetypeError("Number of lines (" +
-                                        numlines + ") must be lower than 0xFF")
+                    raise CodetypeError("Number of lines (" + numlines + ") must be lower than 0xFF")
         return pre + alignHeader(rawhex[:-1], post, ctype, numbytes)
     else:
         return rawhex
 
 
-def deconstruct_code(codes):
-    codetypes = ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5")
-    if codes[:2] not in codetypes:
+def deconstruct_code(codes, cFooter=True):
+    if codes[:2] not in ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5"):
         return (codes, None, None, None, None)
 
     bapo = None
@@ -488,7 +482,7 @@ def deconstruct_code(codes):
                 fcodes += "\n"
         return (fcodes.strip(), bapo, xor, chksum, codetype)
 
-    if codes[-17:-9] == "60000000" or codes[-17:] == "4E800020 00000000":
+    if codes[-17:-9] == "60000000" or (codes[-17:] == "4E800020 00000000" and codetype == "C0" and cFooter):
         return (codes[18:-17], bapo, xor, chksum, codetype)
     else:
         return (codes[18:-9], bapo, xor, chksum, codetype)

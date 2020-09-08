@@ -72,15 +72,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
             except (ValueError, AttributeError, TypeError):
                 stbar.showMessage("Failed to assemble opcodes into gecko codes.", 3000)
         else:
-            dsm_out = self.disassemble(self.geckocodes, None, None)
+            dsm_out = self.disassemble(self.geckocodes, None, None, self.uiprefs.autodecorate.isChecked(), self.uiprefs.formalnaming.isChecked())
             self.opcodes = dsm_out[0]
-            if self.uiprefs.formalnaming.isChecked() == True:
-                opcodes = []
-                for line in self.opcodes.split("\n"):
-                    values = re.sub(r"(?!c)r1(?![0-9])", "sp", line)
-                    values = re.sub(r"(?!c)r2(?![0-9])", "rtoc", values)
-                    opcodes.append(values)
-                self.opcodes = "\n".join(opcodes)
             self.bapo = dsm_out[1][0]
             self.xor = dsm_out[1][1]
             self.chksum = dsm_out[1][2]
@@ -196,22 +189,21 @@ class PyiiAsmhGui(PyiiAsmhApp):
             if sys.platform == "win32":
                 ext += ".txt"
 
-            desc = "PyiiASMH 3 is a cross-platform WiiRd helper tool that "
-            desc += "is designed to help users with making WiiRd ready ASM "
-            desc += "codes. This application supports assembling powerpc "
-            desc += "opcodes into WiiRd codes using any of the WiiRd ASM "
-            desc += "codetypes (04/14, 06/16, C0, C2/D2, and F2/F4), or you can "
-            desc += "assemble them into raw hex. Disassembling of WiiRd codes "
-            desc += "or raw hex into PPC assembly opcodes is also supported. "
-            desc += "\n\n"
-            desc += "Please see the readme (README"+ext+") for more details."
-            desc += "\n\n"
-            desc += "Copyright (c) 2009, 2010, 2011, 2012\n\n"
-            desc += "Sean Power <hawkeye2777[at]gmail[dot]com> \n\n"
-            desc += "All rights reserved."
+            desc = "".join([ "PyiiASMH 3 is a cross-platform WiiRd helper tool that ",
+                             "is designed to help users with making WiiRd ready ASM ",
+                             "codes. This application supports assembling powerpc ",
+                             "opcodes into WiiRd codes using any of the WiiRd ASM ",
+                             "codetypes (04/14, 06/16, C0, C2/D2, and F2/F4), or you can ",
+                             "assemble them into raw hex. Disassembling of WiiRd codes ",
+                             "or raw hex into PPC assembly opcodes is also supported. ",
+                             "\n\n",
+                             "Please see the readme (README"+ext+") for more details.",
+                             "\n\n",
+                             "Copyright (c) 2009, 2010, 2011, 2012, 2020\n\n",
+                             "Sean Power <hawkeye2777[at]gmail[dot]com> \n\n",
+                             "All rights reserved." ])
 
-            QtWidgets.QMessageBox.about(self.app.activeWindow(),
-                                    "About PyiiASMH 3", desc)
+            QtWidgets.QMessageBox.about(self.app.activeWindow(), "About PyiiASMH 3", desc)
         else:  # dialog_type == "preferences":
             self.uiprefs.show()
 
@@ -245,15 +237,11 @@ class PyiiAsmhGui(PyiiAsmhApp):
     def open_session(self, reload_file=False):
         if not reload_file:
             if self.filename is None:  # Just start in the home directory
-                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui,
-                                                              "Open Session", os.path.expanduser(
-                                                                  "~"),
-                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
+                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", os.path.expanduser("~"),
+                                                                  "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
-                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui,
-                                                              "Open Session", os.path.split(
-                                                                  self.filename)[0],
-                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
+                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", os.path.split(self.filename)[0],
+                                                                  "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
             if fname == "":  # Make sure we have something to open
                 return
@@ -261,176 +249,159 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.filename = fname
 
         try:
-            f = open(self.filename, "rb")
+            with open(self.filename, "rb") as f:
+                try:
+                    data = cPickle.load(f)
+                except cPickle.UnpicklingError as e:
+                    self.log.exception(e)
+                else:
+                    self.ui.bapoLineEdit.setText(data.get("bapo"))
+                    self.ui.xorLineEdit.setText(data.get("xor"))
+                    self.ui.checksumLineEdit.setText(data.get("chksum"))
+                    self.ui.opcodesPTextEdit.setPlainText(data.get("opcodes"))
+                    self.ui.geckocodesPTextEdit.setPlainText(
+                        data.get("geckocodes"))
+                    self.ui.actionSave.setEnabled(True)
+                    self.ui.actionReload.setEnabled(True)
+
+                    if data.get("codetype") == "04/14":
+                        self.ui.codetypeSelect.setCurrentIndex(1)
+                    elif data.get("codetype") == "06/16":
+                        self.ui.codetypeSelect.setCurrentIndex(2)
+                    elif data.get("codetype") == "C0":
+                        self.ui.codetypeSelect.setCurrentIndex(0)
+                    elif data.get("codetype") == "C2/D2":
+                        self.ui.codetypeSelect.setCurrentIndex(3)
+                    elif data.get("codetype") == "F2/F4":
+                        self.ui.codetypeSelect.setCurrentIndex(4)
+                    else:
+                        self.ui.codetypeSelect.setCurrentIndex(5)
+
+                    self.save_prefs()
+                    self.ui.setWindowTitle("PyiiASMH 3 - " + os.path.split(self.filename)[1])
+                    self.ui.statusBar().showMessage("Loaded session '" + os.path.split(self.filename)[1] + "'.", 3000)
         except IOError as e:
             self.log.exception(e)
-        else:
-            try:
-                data = cPickle.load(f)
-            except cPickle.UnpicklingError as e:
-                self.log.exception(e)
-            else:
-                self.ui.bapoLineEdit.setText(data.get("bapo"))
-                self.ui.xorLineEdit.setText(data.get("xor"))
-                self.ui.checksumLineEdit.setText(data.get("chksum"))
-                self.ui.opcodesPTextEdit.setPlainText(data.get("opcodes"))
-                self.ui.geckocodesPTextEdit.setPlainText(
-                    data.get("geckocodes"))
-                self.ui.actionSave.setEnabled(True)
-                self.ui.actionReload.setEnabled(True)
-
-                if data.get("codetype") == "04/14":
-                    self.ui.codetypeSelect.setCurrentIndex(1)
-                elif data.get("codetype") == "06/16":
-                    self.ui.codetypeSelect.setCurrentIndex(2)
-                elif data.get("codetype") == "C0":
-                    self.ui.codetypeSelect.setCurrentIndex(0)
-                elif data.get("codetype") == "C2/D2":
-                    self.ui.codetypeSelect.setCurrentIndex(3)
-                elif data.get("codetype") == "F2/F4":
-                    self.ui.codetypeSelect.setCurrentIndex(4)
-                else:
-                    self.ui.codetypeSelect.setCurrentIndex(5)
-
-                self.save_prefs()
-                self.ui.setWindowTitle("PyiiASMH 3 - " +
-                                       os.path.split(self.filename)[1])
-                self.ui.statusBar().showMessage("Loaded session '" +
-                                                os.path.split(self.filename)[1] + "'.", 3000)
-            finally:
-                f.close()
+            
 
     def save_session(self, save_as=True):
         if save_as:
             if self.filename is None:  # Just start in the home directory
-                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui,
-                                                              "Save Session", os.path.expanduser(
-                                                                  "~"),
-                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
+                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", os.path.expanduser("~"),
+                                                                  "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
-                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui,
-                                                              "Save Session", os.path.split(
-                                                                  self.filename)[0],
-                                                              "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
+                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", os.path.split(self.filename)[0],
+                                                                  "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
-            if fname == "" or None:  # Make sure we have something to open
+            if fname == "" or fname is None:  # Make sure we have something to open
                 return
             else:
                 self.filename = fname
 
         try:
-            f = open(self.filename, "wb")
+            with open(self.filename, "wb") as f:
+                data = {}
+                data["bapo"] = str(self.ui.bapoLineEdit.text())
+                data["xor"] = str(self.ui.xorLineEdit.text())
+                data["chksum"] = str(self.ui.checksumLineEdit.text())
+                data["opcodes"] = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
+                data["geckocodes"] = str(self.ui.geckocodesPTextEdit.toPlainText())
+
+                if self.uiprefs.codetypeSelect.currentText() == "04/14":
+                    data["codetype"] = "04/14"
+                elif self.uiprefs.codetypeSelect.currentText() == "06/16":
+                    data["codetype"] = "06/16"
+                elif self.uiprefs.codetypeSelect.currentText() == "C0":
+                    data["codetype"] = "C0"
+                elif self.uiprefs.codetypeSelect.currentText() == "C2/D2":
+                    data["codetype"] = "C2/D2"
+                elif self.uiprefs.codetypeSelect.currentText() == "F2/F4":
+                    data["codetype"] = "F2/F4"
+                else:
+                    data["codetype"] = "RAW"
+
+                cPickle.dump(data, f)
+                self.ui.actionSave.setEnabled(True)
+                self.ui.actionReload.setEnabled(True)
+
+                self.save_prefs()
+                self.ui.setWindowTitle("PyiiASMH 3 - " + os.path.split(self.filename)[1])
+                self.ui.statusBar().showMessage("Saved session '" + os.path.split(self.filename)[1] + "'.", 3000)
         except IOError as e:
             self.log.exception(e)
-        else:
-            data = {}
-            data["bapo"] = str(self.ui.bapoLineEdit.text())
-            data["xor"] = str(self.ui.xorLineEdit.text())
-            data["chksum"] = str(self.ui.checksumLineEdit.text())
-            data["opcodes"] = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
-            data["geckocodes"] = str(self.ui.geckocodesPTextEdit.toPlainText())
-
-            if self.uiprefs.codetypeSelect.currentText() == "04/14":
-                data["codetype"] = "04/14"
-            elif self.uiprefs.codetypeSelect.currentText() == "06/16":
-                data["codetype"] = "06/16"
-            elif self.uiprefs.codetypeSelect.currentText() == "C0":
-                data["codetype"] = "C0"
-            elif self.uiprefs.codetypeSelect.currentText() == "C2/D2":
-                data["codetype"] = "C2/D2"
-            elif self.uiprefs.codetypeSelect.currentText() == "F2/F4":
-                data["codetype"] = "F2/F4"
-            else:
-                data["codetype"] = "RAW"
-
-            cPickle.dump(data, f)
-            self.ui.actionSave.setEnabled(True)
-            self.ui.actionReload.setEnabled(True)
-
-            self.save_prefs()
-            self.ui.setWindowTitle("PyiiASMH 3 - " +
-                                   os.path.split(self.filename)[1])
-            self.ui.statusBar().showMessage("Saved session '" +
-                                            os.path.split(self.filename)[1] + "'.", 3000)
-            f.close()
 
     def load_prefs(self):
         try:
-            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "rb")
+            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "rb") as f:
+                try:
+                    filename = cPickle.load(f)
+                except cPickle.UnpicklingError as e:
+                    self.log.exception(e)
+                else:
+                    if filename is not None:
+                        self.filename = filename
         except IOError:
             self.log.warning("No last session found.")
-        else:
-            try:
-                filename = cPickle.load(f)
-            except cPickle.UnpicklingError as e:
-                self.log.exception(e)
-            else:
-                if filename is not None:
-                    self.filename = filename
-            finally:
-                f.close()
+
         try:
-            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "rb")
-        except IOError:
-            self.log.warning("No preferences file found; using defaults.")
-        else:
-            try:
-                p = cPickle.load(f)
-            except cPickle.UnpicklingError as e:
-                self.log.exception(e)  # Use defaults for prefs
-            else:
-                # Input validation
-                if p.get("confirm") in (True, False):
-                    self.prefs["confirm"] = p.get("confirm")
-
-                if p.get("loadlast") in (True, False):
-                    self.prefs["loadlast"] = p.get("loadlast")
-
-                if p.get("codetype") in ("04/14", "06/16", "C0", "C2/D2", "F2/F4", "RAW"):
-                    self.prefs["codetype"] = p.get("codetype")
-
-                    if p.get("codetype") == "04/14":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(1)
-                    elif p.get("codetype") == "06/16":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(2)
-                    elif p.get("codetype") == "C0":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(0)
-                    elif p.get("codetype") == "C2/D2":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(3)
-                    elif p.get("codetype") == "F2/F4":
-                        self.uiprefs.codetypeSelect.setCurrentIndex(4)
-
-                if p.get("formalnaming") in (True, False):
-                    self.prefs["formalnaming"] = p.get("formalnaming")
-                
-                if p.get("autodecorate") in (True, False):
-                    self.prefs["autodecorate"] = p.get("autodecorate")
-
-                if (p.get("qtstyle") in list(QtWidgets.QStyleFactory.keys()) or
-                        p.get("qtstyle") == "Default"):
-                    self.prefs["qtstyle"] = p.get("qtstyle")
-
-                setCIndex = self.uiprefs.qtstyleSelect.setCurrentIndex
-
-                if self.prefs.get("qtstyle") in (None, "Default"):
-                    setCIndex(0)
+            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "rb") as f:
+                try:
+                    p = cPickle.load(f)
+                except cPickle.UnpicklingError as e:
+                    self.log.exception(e)  # Use defaults for prefs
                 else:
-                    setCIndex(self.uiprefs.qtstyleSelect.findText(
-                        self.prefs.get("qtstyle"),
+                    # Input validation
+                    if p.get("confirm") in (True, False):
+                        self.prefs["confirm"] = p.get("confirm")
+
+                    if p.get("loadlast") in (True, False):
+                        self.prefs["loadlast"] = p.get("loadlast")
+
+                    if p.get("codetype") in ("04/14", "06/16", "C0", "C2/D2", "F2/F4", "RAW"):
+                        self.prefs["codetype"] = p.get("codetype")
+
+                        if p.get("codetype") == "04/14":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(1)
+                        elif p.get("codetype") == "06/16":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(2)
+                        elif p.get("codetype") == "C0":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(0)
+                        elif p.get("codetype") == "C2/D2":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(3)
+                        elif p.get("codetype") == "F2/F4":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(4)
+
+                    if p.get("formalnaming") in (True, False):
+                        self.prefs["formalnaming"] = p.get("formalnaming")
+                    
+                    if p.get("autodecorate") in (True, False):
+                        self.prefs["autodecorate"] = p.get("autodecorate")
+
+                    if (p.get("qtstyle") in list(QtWidgets.QStyleFactory.keys()) or
+                            p.get("qtstyle") == "Default"):
+                        self.prefs["qtstyle"] = p.get("qtstyle")
+
+                    setCIndex = self.uiprefs.qtstyleSelect.setCurrentIndex
+
+                    if self.prefs.get("qtstyle") in (None, "Default"):
+                        setCIndex(0)
+                    else:
+                        setCIndex(self.uiprefs.qtstyleSelect.findText(
+                            self.prefs.get("qtstyle"),
+                            flags=QtCore.Qt.MatchFixedString))
+
+                    setCIndex = self.uiprefs.codetypeSelect.setCurrentIndex
+                    setCIndex(self.uiprefs.codetypeSelect.findText(
+                        self.prefs.get("codetype"),
                         flags=QtCore.Qt.MatchFixedString))
 
-                setCIndex = self.uiprefs.codetypeSelect.setCurrentIndex
-                setCIndex(self.uiprefs.codetypeSelect.findText(
-                    self.prefs.get("codetype"),
-                    flags=QtCore.Qt.MatchFixedString))
-
-                self.ui.set_close_event(self.prefs.get("confirm"))
-                self.uiprefs.confirmation.setChecked(self.prefs.get("confirm"))
-                self.uiprefs.loadLast.setChecked(self.prefs.get("loadlast"))
-                self.uiprefs.formalnaming.setChecked(self.prefs.get("formalnaming"))
-                self.uiprefs.autodecorate.setChecked(self.prefs.get("autodecorate"))
-            finally:
-                f.close()
+                    self.ui.set_close_event(self.prefs.get("confirm"))
+                    self.uiprefs.confirmation.setChecked(self.prefs.get("confirm"))
+                    self.uiprefs.loadLast.setChecked(self.prefs.get("loadlast"))
+                    self.uiprefs.formalnaming.setChecked(self.prefs.get("formalnaming"))
+                    self.uiprefs.autodecorate.setChecked(self.prefs.get("autodecorate"))
+        except FileNotFoundError:
+            self.log.warning("No preferences file found; using defaults.")
 
     def save_prefs(self):
         self.prefs["confirm"] = self.uiprefs.confirmation.isChecked()
@@ -442,19 +413,16 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.set_close_event(self.prefs.get("confirm"))
 
         try:
-            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "wb")
+            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "wb") as f:
+                cPickle.dump(self.prefs, f)
         except IOError as e:
             self.log.exception(e)
-        else:
-            cPickle.dump(self.prefs, f)
-            f.close()
+            
         try:
-            f = open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "wb")
+            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "wb") as f:
+                cPickle.dump(self.filename, f)
         except IOError as e:
             self.log.exception(e)
-        else:
-            cPickle.dump(self.filename, f)
-            f.close()
 
     def load_qtstyle(self, style, first_style_load=False):
         if style != "Default":
@@ -473,24 +441,17 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         self.ui.actionQuit.triggered.connect(self.ui.close)
         self.ui.actionPreferences.triggered.connect(self.show_dialog)
-        self.ui.actionAbout_Qt.triggered.connect(
-            lambda: self.show_dialog("aboutqt"))
-        self.ui.actionAbout_PyiiASMH.triggered.connect(
-            lambda: self.show_dialog("aboutpyiiasmh"))
+        self.ui.actionAbout_Qt.triggered.connect(lambda: self.show_dialog("aboutqt"))
+        self.ui.actionAbout_PyiiASMH.triggered.connect(lambda: self.show_dialog("aboutpyiiasmh"))
 
-        self.ui.actionNew.triggered.connect(
-            lambda: self.confirm_helper(self.new_session))
-        self.ui.actionOpen.triggered.connect(
-            lambda: self.confirm_helper(self.open_session))
+        self.ui.actionNew.triggered.connect(lambda: self.confirm_helper(self.new_session))
+        self.ui.actionOpen.triggered.connect(lambda: self.confirm_helper(self.open_session))
         self.ui.actionSave_As.triggered.connect(lambda: self.save_session(True))
-        self.ui.actionReload.triggered.connect(
-            lambda: self.confirm_helper(self.open_session, True))
-        self.ui.actionSave.triggered.connect(
-            lambda: self.save_session(False))
+        self.ui.actionReload.triggered.connect(lambda: self.confirm_helper(self.open_session, True))
+        self.ui.actionSave.triggered.connect(lambda: self.save_session(False))
 
         self.uiprefs.buttonBox.accepted.connect(self.save_prefs)
-        self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(
-                                                                self.uiprefs.qtstyleSelect.currentText()))
+        self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(self.uiprefs.qtstyleSelect.currentText()))
 
     def run(self):
         if not os.path.isdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")):
@@ -501,9 +462,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.uiprefs = prefs_ui.PrefsUi()
 
         self.uiprefs.qtstyleSelect.addItem("Default")
+
         for i in range(0, len(list(QtWidgets.QStyleFactory.keys()))):
-            self.uiprefs.qtstyleSelect.addItem(
-                list(QtWidgets.QStyleFactory.keys())[i])
+            self.uiprefs.qtstyleSelect.addItem(list(QtWidgets.QStyleFactory.keys())[i])
+
         self.load_prefs()
         self.load_qtstyle(self.prefs.get("qtstyle"), True)
         self.ui.opcodesPTextEdit.setFocus()
