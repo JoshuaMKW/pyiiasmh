@@ -40,7 +40,6 @@ log = None
 eabi = {}
 vdappc = ""
 
-
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(
@@ -151,11 +150,7 @@ def asm_opcodes(tmpdir, txtfile):
         txtfile = os.path.join(tmpdir, "code.txt")
 
     with open(txtfile, 'r+') as asmfile:
-        print(asmfile.read() + "\n")
-        asmfile.seek(0)
         asm = "\n".join([sanitizeLabel(line) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n") for line in asmfile]) + "\n"
-        print(asm)
-        asmfile.seek(0)
         asmfile.write(asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")

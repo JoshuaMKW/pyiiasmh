@@ -50,8 +50,7 @@ class PyiiAsmhApp(object):
 
         self.log = logging.getLogger("PyiiASMH")
         hdlr = logging.FileHandler("error.log")
-        formatter = logging.Formatter(
-            "\n%(levelname)s (%(asctime)s): %(message)s")
+        formatter = logging.Formatter("\n%(levelname)s (%(asctime)s): %(message)s")
         hdlr.setFormatter(formatter)
         self.log.addHandler(hdlr)
 
@@ -183,9 +182,9 @@ class PyiiAsmhApp(object):
                 print('\n-----------------\n' + self.assemble(args.source, None, filetype=filetype).strip() + '\n-----------------\n')
         elif args.disassemble:
             if args.dest:
-                self.disassemble(args.source, args.dest, filetype=filetype, cHeader=args.rmfooterasm, formalnames=args.formalnames)
+                self.disassemble(args.source, args.dest, filetype=filetype, cFooter=args.rmfooterasm, formalNames=args.formalnames)
             else:
-                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype, cHeader=args.rmfooterasm, formalnames=args.formalnames)[0].strip() + '\n-----------------\n')
+                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype, cFooter=args.rmfooterasm, formalNames=args.formalnames)[0].strip() + '\n-----------------\n')
         else:
             parser.print_help()
 
@@ -236,9 +235,8 @@ if __name__ == "__main__":
     if args.bapo:
         try:
             addr = int(args.bapo, 16)
-            if addr < 0x80000000 or addr >= 0x81800000:
-                if addr < 0 or addr >= 0x01800000:
-                    parser.error('The given ba/po address value {} is invalid'.format(args.bapo))
+            if (addr < 0x80000000 or addr >= 0x81800000) and (addr < 0 or addr >= 0x01800000):
+                parser.error('The given ba/po address value {} is invalid'.format(args.bapo))
         except ValueError:
             parser.error('The given ba/po address value {} is not a hex value'.format(args.bapo))
     
