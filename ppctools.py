@@ -104,7 +104,7 @@ def setup():
 
     # Pathnames for powerpc-eabi executables
     for i in ("as", "ld", "objcopy"):
-        eabi[i] = resource_path("lib/" + sys.platform)
+        eabi[i] = resource_path(os.path.join("lib/", sys.platform))
 
         if sys.platform == "linux2":
             if calcsize("P") * 8 == 64:
@@ -118,7 +118,7 @@ def setup():
             eabi[i] += ".exe"
 
     # Pathname for vdappc executable
-    vdappc = resource_path("lib/" + sys.platform)
+    vdappc = resource_path(os.path.join("lib/", sys.platform))
 
     if sys.platform == "linux2":
         if calcsize("P") * 8 == 64:
