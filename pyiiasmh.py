@@ -331,10 +331,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.exception(e)
 
     def load_prefs(self):
-        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
-
-        if sys.platform == "win32":
-            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
+        if sys.platform != "win32":
+            datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+        else:
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
 
         try:
             with open(os.path.join(datapath, ".last.psav"), "rb") as f:
@@ -409,10 +409,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.warning("No preferences file found; using defaults.")
 
     def save_prefs(self):
-        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
-
-        if sys.platform == "win32":
-            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
+        if sys.platform != "win32":
+            datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+        else:
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
 
         self.prefs["confirm"] = self.uiprefs.confirmation.isChecked()
         self.prefs["loadlast"] = self.uiprefs.loadLast.isChecked()
@@ -464,13 +464,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(self.uiprefs.qtstyleSelect.currentText()))
 
     def run(self):
-        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+        if sys.platform != "win32":
+            datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+        else:
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
 
-        if sys.platform == "win32":
-            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
-
-        if not os.path.isdir(datapath, "PyiiASMH-3")):
-            os.mkdir(os.path.join(datapath, "PyiiASMH-3"))
+        if not os.path.isdir(datapath):
+            os.mkdir(datapath)
 
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
