@@ -331,8 +331,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.exception(e)
 
     def load_prefs(self):
+        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
+
         try:
-            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "rb") as f:
+            with open(os.path.join(datapath, ".last.psav"), "rb") as f:
                 try:
                     filename = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
@@ -344,7 +349,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.warning("No last session found.")
 
         try:
-            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "rb") as f:
+            with open(os.path.join(datapath, "PyiiASMH-3", ".PyiiASMH.conf"), "rb") as f:
                 try:
                     p = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
@@ -404,6 +409,11 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.warning("No preferences file found; using defaults.")
 
     def save_prefs(self):
+        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
+
         self.prefs["confirm"] = self.uiprefs.confirmation.isChecked()
         self.prefs["loadlast"] = self.uiprefs.loadLast.isChecked()
         self.prefs["codetype"] = str(self.uiprefs.codetypeSelect.currentText())
@@ -413,13 +423,13 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.set_close_event(self.prefs.get("confirm"))
 
         try:
-            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".PyiiASMH.conf"), "wb") as f:
+            with open(os.path.join(datapath, ".PyiiASMH.conf"), "wb") as f:
                 cPickle.dump(self.prefs, f)
         except IOError as e:
             self.log.exception(e)
             
         try:
-            with open(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3", ".last.psav"), "wb") as f:
+            with open(os.path.join(datapath, ".last.psav"), "wb") as f:
                 cPickle.dump(self.filename, f)
         except IOError as e:
             self.log.exception(e)
@@ -454,8 +464,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(self.uiprefs.qtstyleSelect.currentText()))
 
     def run(self):
-        if not os.path.isdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")):
-            os.mkdir(os.path.join(os.getenv("APPDATA"), "PyiiASMH-3"))
+        datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
+
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("HOME"), "PyiiASMH-3")
+
+        if not os.path.isdir(datapath, "PyiiASMH-3")):
+            os.mkdir(os.path.join(datapath, "PyiiASMH-3"))
+
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
         self.ui = mainwindow_ui.MainWindowUi()
