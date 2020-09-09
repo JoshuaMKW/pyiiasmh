@@ -117,6 +117,8 @@ def setup():
         if sys.platform == "win32":
             eabi[i] += ".exe"
 
+        eabi[i] = os.path.normpath(eabi[i])
+
     # Pathname for vdappc executable
     vdappc = resource_path(os.path.join("lib/", sys.platform))
 
@@ -130,6 +132,8 @@ def setup():
 
     if sys.platform == "win32":
         vdappc += ".exe"
+
+    vdappc = os.path.normpath(vdappc)
 
     log = logging.getLogger("PyiiASMH")
     hdlr = logging.FileHandler("error.log")
@@ -151,13 +155,14 @@ def asm_opcodes(tmpdir, txtfile):
 
     with open(txtfile, 'r+') as asmfile:
         asm = "\n".join([sanitizeLabel(line) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n") for line in asmfile]) + "\n"
+        asmfile.seek(0)
         asmfile.write(asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
     output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
-                               tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE).communicate()
+                            tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE).communicate()
 
     if output[1]:
         errormsg = str(output[1], encoding="utf-8")
@@ -171,11 +176,11 @@ def asm_opcodes(tmpdir, txtfile):
 
         raise RuntimeError(errormsg)
 
-    subprocess.Popen([eabi["ld"], "-Ttext", "0x80000000", "-o",
-                      tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE).communicate()
+    res = subprocess.Popen([eabi["ld"], "-Ttext", "0x80000000", "-o",
+                    tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE).communicate()
 
     subprocess.Popen([eabi["objcopy"], "-O", "binary",
-                      tmpdir + "src2.o", tmpfile], stderr=subprocess.PIPE).communicate()
+                    tmpdir + "src2.o", tmpfile], stderr=subprocess.PIPE).communicate()
 
     rawhex = ""
     try:
@@ -188,7 +193,7 @@ def asm_opcodes(tmpdir, txtfile):
                 rawhex = "The compile was corrupt,\nplease try again.\n"
     except IOError:
         log.exception("Failed to open '" + tmpfile + "'")
-        rawhex = "Failed to compile the asm,\nplease try again.\n"
+        rawhex = str(res[1])
 
     return rawhex
 
