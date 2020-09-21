@@ -55,11 +55,19 @@ def sanitizeLabel(label):
     isinstruction = True
 
     newstr = []
+
+    if ".asciz" in label:
+        return label
+
     for i, char in enumerate(label):
 
         if char == "#": iscomment = True
         if char == "(" and iscomment == False: isparen = True
         if char == ")": isparen = False
+
+        if char == "." and iscomment == False and i+2 < len(label) and isinstruction == True:
+            if label[i+1] != "s" or label[i+2] != "e":
+                return label
 
         if i > 0 and char in whitespace and label[i-1] not in whitespace:
             isinstruction = False
