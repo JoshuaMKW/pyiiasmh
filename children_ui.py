@@ -32,7 +32,7 @@ import icons_rc
 
 class PrefsUi(QtWidgets.QDialog):
     def __init__(self):
-        super(PrefsUi, self).__init__(None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
+        super().__init__(None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
 
         self.setupUi()
 
@@ -133,3 +133,119 @@ class PrefsUi(QtWidgets.QDialog):
         self.codetypeLabel.setText(QtWidgets.QApplication.translate("Dialog", "Default Codetype:", None))
         self.qtstyleLabel.setText(QtWidgets.QApplication.translate("Dialog", "GUI Style:", None))
 
+class BuiltinsDocUI(QtWidgets.QDialog):
+    def __init__(self):
+        super().__init__(None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
+
+        self.init_docs()
+        self.setupUi()
+
+    def setupUi(self):
+        self.setObjectName("Dialog")
+        self.resize(700, 400)
+        self.setMinimumSize(QtCore.QSize(700, 400))
+        self.setBaseSize(QtCore.QSize(700, 400))
+        self.setMaximumSize(QtCore.QSize(700, 400))
+        self.setModal(True)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(":/main_icons/.icons/PyiiASMH.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.setWindowIcon(icon)
+
+        self.objtypebar = QtWidgets.QPlainTextEdit(self)
+        self.objtypebar.setMinimumSize(QtCore.QSize(400, 32))
+        self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 32))
+        font = QtGui.QFont()
+        font.setFamily("Consolas")
+        font.setPointSize(13)
+        font.setWeight(34)
+        fontMetrics = QtGui.QFontMetricsF(font)
+        spaceWidth = fontMetrics.width(' ')
+        self.objtypebar.setFont(font)
+        self.objtypebar.setTabStopDistance(spaceWidth * 4)
+        self.objtypebar.setReadOnly(True)
+        self.objtypebar.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.objtypebar.setBackgroundVisible(False)
+        self.objtypebar.setObjectName("docuTextBox")
+
+        self.objtypebar.setPlainText("")
+
+        self.gridLayoutWidget = QtWidgets.QGridLayout(self)
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 60, 400, 70))
+        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
+
+        self.funcSelect = QtWidgets.QListWidget(self)
+        self.funcSelect.setMinimumSize(QtCore.QSize(200, 200))
+        self.funcSelect.setMaximumSize(QtCore.QSize(200, 16777215))
+        self.funcSelect.setObjectName("funcSelect")
+
+        for item in self.docs:
+            self.funcSelect.addItem(item[0])
+
+        self.docuTextBox = QtWidgets.QPlainTextEdit(self)
+        self.docuTextBox.setMinimumSize(QtCore.QSize(400, 300))
+        self.docuTextBox.setMaximumSize(QtCore.QSize(16777215, 16777215))
+        font = QtGui.QFont()
+        font.setFamily("Consolas")
+        font.setPointSize(10)
+        font.setWeight(34)
+        fontMetrics = QtGui.QFontMetricsF(font)
+        spaceWidth = fontMetrics.width(' ')
+        self.docuTextBox.setFont(font)
+        self.docuTextBox.setTabStopDistance(spaceWidth * 4)
+        self.docuTextBox.setReadOnly(True)
+        self.docuTextBox.setBackgroundVisible(False)
+        self.docuTextBox.setObjectName("docuTextBox")
+
+        self.docuTextBox.setPlainText("")
+
+        self.gridLayoutWidget.addWidget(self.funcSelect, 0, 0, 2, 1)
+        self.gridLayoutWidget.addWidget(self.objtypebar, 0, 1, 1, 1)
+        self.gridLayoutWidget.addWidget(self.docuTextBox, 1, 1, 1, 1)
+
+        self.setWindowTitle(QtWidgets.QApplication.translate("Dialog", "Builtins Documentation", None))
+
+        QtCore.QMetaObject.connectSlotsByName(self)
+
+    def init_docs(self):
+        self.docs = []
+        _names = []
+        _docs = []
+        _types = []
+
+        with open("__includes.a", "r") as builtins:
+            commentready = False
+            _documentation = ""
+            for line in builtins.readlines():
+                line.strip()
+                if line == "":
+                    continue
+                elif line.startswith("#") and commentready:
+                    _documentation += line[1:].strip() + "\n"
+                    continue
+                elif commentready:
+                    _docs.append(_documentation)
+                    commentready = False
+                    _documentation = ""
+                    continue
+
+                segments = line.split(" ")
+                if segments[0] == ".set":
+                    _types.append("const")
+                elif segments[0] == ".macro":
+                    _types.append("macro")
+                else:
+                    commentready = False
+                    continue
+                
+                commentready = True
+                _names.append(segments[1].strip().rstrip(","))
+
+        for i in range(len(_names)):
+            self.docs.append((_names[i], _docs[i], _types[i]))
+
+    def update_info(self):
+        self.objtypebar.setPlainText(self.docs[self.funcSelect.currentRow()][2].center(51, " ").upper())
+        self.docuTextBox.setPlainText(self.docs[self.funcSelect.currentRow()][1])
+
+
+        

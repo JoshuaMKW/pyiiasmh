@@ -33,7 +33,7 @@ import icons_rc
 
 class MainWindowUi(QtWidgets.QMainWindow):
     def __init__(self):
-        super(MainWindowUi, self).__init__()
+        super().__init__()
 
         self.close_event = False
         self.setupUi()
@@ -448,6 +448,12 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.actionAbout_Qt.setFont(font)
         self.actionAbout_Qt.setMenuRole(QtWidgets.QAction.AboutQtRole)
         self.actionAbout_Qt.setObjectName("actionAbout_Qt")
+        self.actionBuiltins_Help = QtWidgets.QAction(self)
+        font = QtGui.QFont()
+        font.setFamily("Helvetica")
+        self.actionBuiltins_Help.setFont(font)
+        self.actionBuiltins_Help.setMenuRole(QtWidgets.QAction.AboutRole)
+        self.actionBuiltins_Help.setObjectName("actionBuiltins_Help")
         self.menuFile.addAction(self.actionNew)
         self.menuFile.addAction(self.actionOpen)
         self.menuFile.addSeparator()
@@ -459,6 +465,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.menuEdit.addAction(self.actionPreferences)
         self.menuHelp.addAction(self.actionAbout_PyiiASMH)
         self.menuHelp.addAction(self.actionAbout_Qt)
+        self.menuHelp.addAction(self.actionBuiltins_Help)
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuEdit.menuAction())
         self.menubar.addAction(self.menuHelp.menuAction())
@@ -561,4 +568,5 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.actionPreferences.setStatusTip(QtWidgets.QApplication.translate("MainWindow", "Open the application preferences dialog", None))
         self.actionAbout_PyiiASMH.setText(QtWidgets.QApplication.translate("MainWindow", "About &PyiiASMH 3...", None))
         self.actionAbout_Qt.setText(QtWidgets.QApplication.translate("MainWindow", "About &Qt...", None))
+        self.actionBuiltins_Help.setText(QtWidgets.QApplication.translate("MainWindow", "Builtins...", None))
 

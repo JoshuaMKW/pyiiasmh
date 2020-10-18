@@ -35,7 +35,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui, sip
 
 from pyiiasmh_cli import PyiiAsmhApp
 import mainwindow_ui
-import prefs_ui
+import children_ui
 
 class PyiiAsmhGui(PyiiAsmhApp):
 
@@ -44,11 +44,12 @@ class PyiiAsmhGui(PyiiAsmhApp):
         DISASSEMBLE = "dsm"
 
     def __init__(self):
-        super(PyiiAsmhGui, self).__init__()
+        super().__init__()
 
         self.app = None
         self.ui = None
         self.uiprefs = None
+        self.uibuiltins = None
         self.filename = None
         self.prefs = {"confirm": True, "loadlast": False,
                       "autodecorate": True, "formalnaming": False,
@@ -212,6 +213,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                              "All rights reserved." ])
 
             QtWidgets.QMessageBox.about(self.app.activeWindow(), "About PyiiASMH 3", desc)
+        elif dialog_type == "BuiltinsHelp":
+            self.uibuiltins.show()
         else:  # dialog_type == "preferences":
             self.uiprefs.show()
 
@@ -458,9 +461,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.dsmButton.clicked.connect(lambda: self.convert(PyiiAsmhGui.Actions.DISASSEMBLE))
 
         self.ui.actionQuit.triggered.connect(self.ui.close)
-        self.ui.actionPreferences.triggered.connect(self.show_dialog)
+        self.ui.actionPreferences.triggered.connect(lambda: self.show_dialog("Preferences"))
         self.ui.actionAbout_Qt.triggered.connect(lambda: self.show_dialog("aboutqt"))
         self.ui.actionAbout_PyiiASMH.triggered.connect(lambda: self.show_dialog("aboutpyiiasmh"))
+        self.ui.actionBuiltins_Help.triggered.connect(lambda: self.show_dialog("BuiltinsHelp"))
 
         self.ui.actionNew.triggered.connect(lambda: self.confirm_helper(self.new_session))
         self.ui.actionOpen.triggered.connect(lambda: self.confirm_helper(self.open_session))
@@ -470,6 +474,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         self.uiprefs.buttonBox.accepted.connect(self.save_prefs)
         self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(self.uiprefs.qtstyleSelect.currentText()))
+
+        self.uibuiltins.funcSelect.currentRowChanged.connect(lambda: self.uibuiltins.update_info())
 
     def run(self):
         if sys.platform != "win32":
@@ -483,7 +489,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
         self.ui = mainwindow_ui.MainWindowUi()
-        self.uiprefs = prefs_ui.PrefsUi()
+        self.uiprefs = children_ui.PrefsUi()
+        self.uibuiltins = children_ui.BuiltinsDocUI()
 
         self.uiprefs.qtstyleSelect.addItem("Default")
 

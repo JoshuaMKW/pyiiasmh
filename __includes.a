@@ -1,21 +1,55 @@
 .set TRUE, 1
-.set FALSE, 0
-.set NULLPTR, 0
-.set NULL, 0
-.set NONE, __none__
-.set AMERICA, E
-.set EUROPE, P
-.set JAPAN, J
-.set KOREA, K
-.set CHINA, C
-.set TAIWAN, T
+# Use for comparisons where you need to check if something has returned true
 
-.macro __u32 register val
-    lis \register, \val@h
-	ori \register, \register, \val@l
+.set FALSE, 0
+# Use for comparisons where you need to check if something has returned false
+
+.set NULLPTR, 0
+# Use for when you need to check if a pointer is null
+
+.set NULL, 0
+# Use for when you are checking for a null character
+
+.set NONE, __none__
+# Use as an argument to macros for specifying that you aren't providing an optional argument
+#
+# An example usage is: __set_count_register r0 NONE
+
+.set AMERICA, E
+# The American region specifier, used in disc IDs and in region flexible assembly
+
+.set EUROPE, P
+# The European region specifier, used in disc IDs and in region flexible assembly
+
+.set JAPAN, J
+# The Japanese region specifier, used in disc IDs and in region flexible assembly
+
+.set KOREA, K
+# The Korean region specifier, used in disc IDs and in region flexible assembly
+
+.set CHINA, C
+# The Chinese region specifier, used in region flexible assembly
+
+.set TAIWAN, T
+# The Taiwanese region specifier, used in disc IDs and in region flexible assembly
+
+.macro __set register value
+# Syntax: __set <register> <value>
+#
+# Sets a register to be <value>
+    .if \value > 0x7FFF || \value < 0
+        lis \register, \value@h
+        ori \register, \register, \value@l
+    .else
+        li \register, \value
+    .endif
 .endm
 
 .macro __push_stack floor_gpr size save_lr
+# Syntax: __push_stack <floor_gpr> <size> <save_lr>
+#
+# Pushes the stack frame by <size>, storing all gprs starting at <floor_gpr>
+# <save_lr> preserves the lr state, and is an optional argument, use NONE if not desired
     .if \save_lr == TRUE
         mflr r0
         stw r0, 0x4 (sp)
@@ -26,6 +60,10 @@
 .endm
 
 .macro __pop_stack floor_gpr size restore_lr
+# Syntax: __pop_stack <floor_gpr> <size> <save_lr>
+#
+# Pops the stack frame by <size>, restoring all gprs starting at <floor_gpr>
+# <restore_lr> restores the lr state, and is an optional argument; use NONE if not desired
     lmw \floor_gpr, 0x8 (sp)
     addi sp, sp, ((\size + 15) & -16)
 
@@ -35,60 +73,73 @@
     .endif
 .endm
 
-.macro __set_count_register register count
-    .if \count == NONE
+.macro __set_count_register register value
+# Syntax: __set_count_register <register> <value>
+#
+# Sets the count register to be the value contained by <register>
+# <value> sets the value of <register> before the operation, and is an optional argument; use NONE if not desired
+    .if \value == NONE
         mtctr \register
     .else
-        .if \count < 0x8000
-            li \register, \count
-        .else if
-            __u32 \register, \count
-        .endif
+        __set \register, \value
         mtctr \register
     .endif
 .endm
 
-.macro __set_link_register register address
-    .if \address == NONE
+.macro __set_link_register register value
+# Syntax: __set_link_register <register> <value>
+#
+# Sets the link register to be the value contained by <register>
+# <value> sets the value of <register> before the operation, and is an optional argument; use NONE if not desired
+    .if \value == NONE
         mtlr \register
     .else
-        .if \address < 0x8000
-            li \register, \address
-        .else if
-            __u32 \register, \address
-        .endif
+        __set \register, \value
         mtlr \register
     .endif
 .endm
 
-.macro __set_spr spr register val
-    .if \val == NONE
+.macro __set_spr spr register value
+# Syntax: __set_spr <register> <value>
+#
+# Sets the special purpose register specified by <spr> to be the value contained by <register>
+# <value> sets the value of <register> before the operation, and is an optional argument; use NONE if not desired
+    .if \value == NONE
         mtlr \register
     .else
-        .if \val < 0x8000
-            li \register, \val
-        .else if
-            __u32 \register, \val
-        .endif
+        __set \register, \value
         mtspr \spr \register
     .endif
 .endm
 
 .macro __call register address
-	__u32 \register \address
-	mtctr \register
+# Syntax: __call <register> <address>
+#
+# Calls the function using the address contained by <register>
+# <address> sets the value of <register> before the operation, and is an optional argument; use NONE if not desired
+    .if \address == NONE
+        mtctr \register
+    .else
+        __set \register \address
+        mtctr \register
+    .endif
 	bctrl
 .endm
 
-.macro __OSGetTime
-    .__timeloop:
-        mftbu r3
-        mftbl r4
-        mftbu r5
-        cmpw r3, r5
-        bne+ .__timeloop
+.macro __OSGetTime regA regB
+# Syntax: __OSGetTime
+#
+# Returns the synced time base value into the registers <regA> (upper) and <regB> (lower)
+    mftbu \regA
+    mftbl \regB
+    mftbu r0
+    cmpw \regA, r0
+    bne+ -0x10
 .endm
 
-.macro __OSGetTick
-    mftbl r3
+.macro __OSGetTick register
+# Syntax: __OSGetTick <register>
+#
+# Returns the lower 32 bits of the time base value into <register>
+    mftbl \register
 .endm

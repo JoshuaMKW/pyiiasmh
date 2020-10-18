@@ -156,7 +156,7 @@ class PyiiAsmhApp(object):
         if formalNames:
             opcodes = []
             for line in toReturn[0].split("\n"):
-                values = re.sub(r"(?!c)r1(?![0-9])", "sp", line)
+                values = re.sub(r"(?!c)r1(?![0-9])", "sp", line) #TODO FIX CR CORRUPTION
                 values = re.sub(r"(?!c)r2(?![0-9])", "rtoc", values)
                 opcodes.append(values)
             toReturn[0] = "\n".join(opcodes)
