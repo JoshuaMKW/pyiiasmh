@@ -127,7 +127,7 @@
 .endm
 
 .macro __OSGetTime regA regB
-# Syntax: __OSGetTime
+# Syntax: __OSGetTime <regA> <regB>
 #
 # Returns the synced time base value into the registers <regA> (upper) and <regB> (lower)
     mftbu \regA
