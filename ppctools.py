@@ -42,8 +42,7 @@ vdappc = ""
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(
-        os.path.abspath(__file__)))
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 def sanitizeLabel(label):
@@ -164,6 +163,7 @@ def asm_opcodes(tmpdir, txtfile):
     with open(txtfile, 'r+') as asmfile:
         asm = "\n".join([sanitizeLabel(line) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n") for line in asmfile]) + "\n"
         asmfile.seek(0)
+        asmfile.write(".include \"__includes.a\"\n")
         asmfile.write(asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")
@@ -347,7 +347,7 @@ def sign_extendb(value):
 def enclose_string(string):
     return "-"*(len(string) + 2) + "\n|" + string + "|\n" + "-"*(len(string) + 2)
 
-def alignHeader(rawhex, post, codetype, numbytes):
+def align_header(rawhex, post, codetype, numbytes):
     endingZeros = int(numbytes, 16) % 8
 
     if codetype == "0414":
@@ -417,7 +417,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                     for opcode in opcodeline.split(' '):
                         if opcode == '':
                             break
-                        newhex += pre + '{:06X} '.format(address) + alignHeader(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
+                        newhex += pre + '{:06X} '.format(address) + align_header(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
                         address += 4
 
                 return newhex
@@ -442,7 +442,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
                     pre += bapo[2:] + " " + "{:02X}".format(int(chksum, 16)) + "{:04X}".format(int(xor, 16)) + numlines + "\n"
                 else:
                     raise CodetypeError("Number of lines (" + numlines + ") must be lower than 0xFF")
-        return pre + alignHeader(rawhex[:-1], post, ctype, numbytes)
+        return pre + align_header(rawhex[:-1], post, ctype, numbytes)
     else:
         return rawhex
 

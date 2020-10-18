@@ -1,0 +1,94 @@
+.set TRUE, 1
+.set FALSE, 0
+.set NULLPTR, 0
+.set NULL, 0
+.set NONE, __none__
+.set AMERICA, E
+.set EUROPE, P
+.set JAPAN, J
+.set KOREA, K
+.set CHINA, C
+.set TAIWAN, T
+
+.macro __u32 register val
+    lis \register, \val@h
+	ori \register, \register, \val@l
+.endm
+
+.macro __push_stack floor_gpr size save_lr
+    .if \save_lr == TRUE
+        mflr r0
+        stw r0, 0x4 (sp)
+    .endif
+
+    stwu sp, (((\size + 15) & -16) * -1) (sp)
+    stmw \floor_gpr, 0x8 (sp)
+.endm
+
+.macro __pop_stack floor_gpr size restore_lr
+    lmw \floor_gpr, 0x8 (sp)
+    addi sp, sp, ((\size + 15) & -16)
+
+    .if \restore_lr == TRUE
+        lwz r0, 0x4 (sp)
+        mtlr r0
+    .endif
+.endm
+
+.macro __set_count_register register count
+    .if \count == NONE
+        mtctr \register
+    .else
+        .if \count < 0x8000
+            li \register, \count
+        .else if
+            __u32 \register, \count
+        .endif
+        mtctr \register
+    .endif
+.endm
+
+.macro __set_link_register register address
+    .if \address == NONE
+        mtlr \register
+    .else
+        .if \address < 0x8000
+            li \register, \address
+        .else if
+            __u32 \register, \address
+        .endif
+        mtlr \register
+    .endif
+.endm
+
+.macro __set_spr spr register val
+    .if \val == NONE
+        mtlr \register
+    .else
+        .if \val < 0x8000
+            li \register, \val
+        .else if
+            __u32 \register, \val
+        .endif
+        mtspr \spr \register
+    .endif
+.endm
+
+.macro __call register address
+	__u32 \register \address
+	mtctr \register
+	bctrl
+.endm
+
+.macro __OSGetTime
+    .__timeloop:
+        mftbu r3
+        mftbl r4
+        mftbu r5
+        cmpw r3, r5
+        bne+ .__timeloop
+.endm
+
+.macro __OSGetTick
+    mftbl r3
+.endm

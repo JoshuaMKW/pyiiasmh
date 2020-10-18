@@ -39,6 +39,10 @@ import prefs_ui
 
 class PyiiAsmhGui(PyiiAsmhApp):
 
+    class Actions:
+        ASSEMBLE = "asm"
+        DISASSEMBLE = "dsm"
+
     def __init__(self):
         super(PyiiAsmhGui, self).__init__()
 
@@ -52,11 +56,11 @@ class PyiiAsmhGui(PyiiAsmhApp):
         
         self.default_qtstyle = None
 
-    def convert(self, action):
+    def convert(self, action: Actions):
         self.get_uivars(action)
-        stbar = self.ui.statusBar()
+        _stbar = self.ui.statusBar()
 
-        if action == "asm":
+        if action == PyiiAsmhGui.Actions.ASSEMBLE:
             self.geckocodes = self.assemble(self.opcodes, None, None)
             if self.uiprefs.autodecorate.isChecked() == False:
                 if self.ui.codetypeSelect.currentText() == "C0":
@@ -68,10 +72,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.ui.geckocodesPTextEdit.setPlainText(self.geckocodes)
             try:
                 int(self.geckocodes.replace("\n", "").replace(" ", ""), 16)
-                stbar.showMessage("Assembled opcodes into gecko codes.", 3000)
+                _stbar.showMessage("Assembled opcodes into gecko codes.", 3000)
             except (ValueError, AttributeError, TypeError):
-                stbar.showMessage("Failed to assemble opcodes into gecko codes.", 3000)
-        else:
+                _stbar.showMessage("Failed to assemble opcodes into gecko codes.", 3000)
+        elif action == PyiiAsmhGui.Actions.DISASSEMBLE:
             dsm_out = self.disassemble(self.geckocodes, None, None, self.uiprefs.autodecorate.isChecked(), self.uiprefs.formalnaming.isChecked())
             self.opcodes = dsm_out[0]
             self.bapo = dsm_out[1][0]
@@ -98,12 +102,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.codetypeSelect.setCurrentIndex(4)
             else:
                 self.ui.codetypeSelect.setCurrentIndex(5)
-            stbar.showMessage("Disassembled gecko codes into opcodes.", 3000)
+            _stbar.showMessage("Disassembled gecko codes into opcodes.", 3000)
+        else:
+            raise NotImplementedError(f"Action \"{action}\" is unsupported")
 
     def get_uivars(self, action):
-        if action == "dsm":
+        if action == PyiiAsmhGui.Actions.DISASSEMBLE:
             self.geckocodes = str(self.ui.geckocodesPTextEdit.toPlainText())
-        else:
+        elif action == PyiiAsmhGui.Actions.ASSEMBLE:
             self.bapo = str(self.ui.bapoLineEdit.text())
             self.xor = str(self.ui.xorLineEdit.text())
             self.chksum = str(self.ui.checksumLineEdit.text())
@@ -137,6 +143,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                     self.chksum = "00"
                 else:
                     self.chksum = None
+        else:
+            raise NotImplementedError(f"Action \"{action}\" is unsupported")
 
     def confirm_prompt(self, title, text, inform_text, detailed_text=None):
         cp = QtWidgets.QMessageBox(self.app.activeWindow())
@@ -446,8 +454,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                                                           flags=QtCore.Qt.MatchFixedString))
 
     def connect_signals(self):
-        self.ui.asmButton.clicked.connect(lambda: self.convert("asm"))
-        self.ui.dsmButton.clicked.connect(lambda: self.convert("dsm"))
+        self.ui.asmButton.clicked.connect(lambda: self.convert(PyiiAsmhGui.Actions.ASSEMBLE))
+        self.ui.dsmButton.clicked.connect(lambda: self.convert(PyiiAsmhGui.Actions.DISASSEMBLE))
 
         self.ui.actionQuit.triggered.connect(self.ui.close)
         self.ui.actionPreferences.triggered.connect(self.show_dialog)
