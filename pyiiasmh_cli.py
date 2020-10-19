@@ -70,8 +70,8 @@ class PyiiAsmhApp(object):
         try:
             toReturn = ""
             machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
-        except UnsupportedOSError:
-            self.log.exception()
+        except UnsupportedOSError as e:
+            self.log.exception(e)
             toReturn = (f"Your OS '{sys.platform}' is not supported. See 'error.log' for details and also read the README.")
         except IOError as e:
             self.log.exception(e)
