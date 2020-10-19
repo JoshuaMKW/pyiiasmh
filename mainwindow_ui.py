@@ -218,8 +218,6 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.codetypeLabel.setSizePolicy(sizePolicy)
         self.codetypeLabel.setMinimumSize(QtCore.QSize(100, 21))
         self.codetypeLabel.setMaximumSize(QtCore.QSize(16777215, 21))
-        self.bapoLabel.setScaledContents(False)
-        self.bapoLabel.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.codetypeLabel.setObjectName("codetypeLabel")
         self.codetypeLayout.addWidget(self.codetypeLabel, 0, 0, 1, 1)
 
