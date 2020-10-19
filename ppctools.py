@@ -301,6 +301,7 @@ def format_opcodes(output):
             #Set up cleaner format
             values = _ppcSIMM
             if _ppcInstruction not in nonhexInstructions:
+
                 #Format decimal values to be hex
                 for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", _ppcSIMM):
                     if "(" in decimal and _ppcInstruction not in unsignedInstructions:
@@ -314,6 +315,9 @@ def format_opcodes(output):
                             decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
                         else:
                             decimal = "0x{:X}".format(int(decimal, 10))
+                    if decimal == "0x0":
+                        decimal = "0"
+                        
                     values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values, count=1)
                 values = re.sub(",", ", ", values)
 
