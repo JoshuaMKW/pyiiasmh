@@ -172,11 +172,8 @@ def asm_opcodes(tmpdir, txtfile):
                             tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE).communicate()
 
-    print(output)
-
     if output[1]:
         errormsg = str(output[1], encoding="utf-8")
-        print(errormsg)
         errormsg = errormsg.replace(txtfile + ":", "^")[23:]
 
         with open(txtfile, "r") as asm:
@@ -317,7 +314,7 @@ def format_opcodes(output):
                             decimal = "0x{:X}".format(int(decimal, 10))
                     if decimal == "0x0":
                         decimal = "0"
-                        
+
                     values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values, count=1)
                 values = re.sub(",", ", ", values)
 
