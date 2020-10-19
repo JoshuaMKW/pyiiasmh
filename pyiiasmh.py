@@ -24,6 +24,8 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#TODO: TEST LINUX/UBUNTU SUPPORT
+
 import os
 import re
 import sys
@@ -31,7 +33,7 @@ import signal
 import logging
 import pickle as cPickle
 
-from PyQt5 import QtCore, QtWidgets, QtGui, sip
+from PyQt5 import QtCore, QtWidgets, QtGui
 
 from pyiiasmh_cli import PyiiAsmhApp
 import mainwindow_ui
