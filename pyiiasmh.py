@@ -360,7 +360,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.warning("No last session found.")
 
         try:
-            with open(os.path.join(datapath, "PyiiASMH-3", ".PyiiASMH.conf"), "rb") as f:
+            with open(os.path.join(datapath, ".PyiiASMH.conf"), "rb") as f:
                 try:
                     p = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
