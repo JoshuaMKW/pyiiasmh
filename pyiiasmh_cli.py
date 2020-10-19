@@ -24,15 +24,15 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import binascii
+import logging
 import os
 import re
-import sys
-import time
 import shutil
-import logging
-import binascii
+import sys
 import tempfile
-import argparse
+import time
+from argparse import ArgumentParser
 
 import ppctools
 from errors import CodetypeError, UnsupportedOSError
@@ -70,15 +70,12 @@ class PyiiAsmhApp(object):
         try:
             toReturn = ""
             machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
-            if machine_code.startswith("b\""):
-                pass
-                #bad label handler
         except UnsupportedOSError:
             self.log.exception()
-            toReturn = ("Your OS '" + sys.platform + "' is not supported. See 'error.log' for details and also read the README.")
+            toReturn = (f"Your OS '{sys.platform}' is not supported. See 'error.log' for details and also read the README.")
         except IOError as e:
             self.log.exception(e)
-            toReturn = "Error: " + str(e)
+            toReturn = f"Error: {str(e)}"
         except RuntimeError as e:
             self.log.exception(e)
             toReturn = str(e)
@@ -124,7 +121,7 @@ class PyiiAsmhApp(object):
             except IOError as e:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
-                return ["Error: " + str(e), (None, None, None, None)]
+                return [f"Error: {str(e)}", (None, None, None, None)]
 
         rawcodes = ppctools.deconstruct_code(codes, cFooter)
 
@@ -143,7 +140,7 @@ class PyiiAsmhApp(object):
             opcodes = ppctools.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
-            toReturn = (("Your OS '" + sys.platform + "' is not supported. " +
+            toReturn = ((f"Your OS '{sys.platform}' is not supported. " +
                          "See 'error.log' for details and also read the README."),
                         (None, None, None, None))
         except IOError as e:
@@ -173,6 +170,7 @@ class PyiiAsmhApp(object):
             self.codetype = None
         else:
             self.codetype = args.codetype.upper()
+
         self.bapo = args.bapo
         self.xor = args.xor
         self.chksum = args.samples
@@ -192,9 +190,9 @@ class PyiiAsmhApp(object):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog='PyiiASMH 3',
-                                     description='Gecko code compiler for PPC assembly',
-                                     allow_abbrev=False)
+    parser = ArgumentParser(prog='PyiiASMH 3',
+                            description='Gecko code compiler for PPC assembly',
+                            allow_abbrev=False)
 
     parser.add_argument('source', help='Source file')
     parser.add_argument('-a', '--assemble',
