@@ -28,7 +28,6 @@
 
 
 from PyQt5 import QtCore, QtWidgets, QtGui
-import icons_rc
 
 class PrefsUi(QtWidgets.QDialog):
     def __init__(self):
@@ -44,7 +43,7 @@ class PrefsUi(QtWidgets.QDialog):
         self.setMaximumSize(QtCore.QSize(300, 234))
         self.setModal(True)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/main_icons/.icons/PyiiASMH.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setGeometry(QtCore.QRect(10, 194, 281, 32))
@@ -148,7 +147,7 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         self.setMaximumSize(QtCore.QSize(700, 400))
         self.setModal(True)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/main_icons/.icons/PyiiASMH.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
 
         self.objtypebar = QtWidgets.QPlainTextEdit(self)

@@ -29,8 +29,6 @@
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-import icons_rc
-
 class MainWindowUi(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -75,7 +73,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         font.setWeight(42)
         self.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/main_icons/.icons/PyiiASMH.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
