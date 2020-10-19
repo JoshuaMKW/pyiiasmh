@@ -113,7 +113,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.xorLineEdit.setFont(font)
         self.xorLineEdit.setText("")
         self.xorLineEdit.setMaxLength(4)
-        self.xorLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.xorLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.xorLineEdit.setObjectName("xorLineEdit")
         self.codeinfoLayout.addWidget(self.xorLineEdit, 0, 2, 1, 1)
         self.checksumLabel = QtWidgets.QLabel(self.centralwidget)
@@ -145,7 +145,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.checksumLineEdit.setAutoFillBackground(False)
         self.checksumLineEdit.setText("")
         self.checksumLineEdit.setMaxLength(2)
-        self.checksumLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.checksumLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.checksumLineEdit.setObjectName("checksumLineEdit")
         self.codeinfoLayout.addWidget(self.checksumLineEdit, 1, 2, 1, 1)
         
@@ -205,7 +205,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.bapoLineEdit.setText("")
         self.bapoLineEdit.setMaxLength(8)
         self.bapoLineEdit.setFrame(True)
-        self.bapoLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.bapoLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.bapoLineEdit.setObjectName("bapoLineEdit")
         self.codetypeLayout.addWidget(self.bapoLineEdit, 1, 3, 1, 1)
 
