@@ -48,7 +48,6 @@ class MainWindowUi(QtWidgets.QMainWindow):
             reply.setText("Are you sure you want to quit?")
             reply.setInformativeText("Unsaved data will be lost.")
             reply.setIcon(QtWidgets.QMessageBox.Warning)
-            reply.setIcon(QtWidgets.QMessageBox.Warning)
             reply.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
             reply.setDefaultButton(QtWidgets.QMessageBox.No)
 
