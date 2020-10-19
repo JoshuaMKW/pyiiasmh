@@ -70,6 +70,9 @@ class PyiiAsmhApp(object):
         try:
             toReturn = ""
             machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
+            if machine_code.startswith("b\""):
+                pass
+                #bad label handler
         except UnsupportedOSError:
             self.log.exception()
             toReturn = ("Your OS '" + sys.platform + "' is not supported. See 'error.log' for details and also read the README.")
@@ -82,12 +85,11 @@ class PyiiAsmhApp(object):
         else:
             if self.bapo is not None:
                 if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
-                    return "Invalid ba/po: {}".format(self.bapo)
+                    return f"Invalid ba/po: {self.bapo}"
                 elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
-                    return "Invalid ba/po: {}".format(self.bapo)
+                    return f"Invalid ba/po: {self.bapo}"
 
-            toReturn = ppctools.construct_code(machine_code,
-                                               self.bapo, self.xor, self.chksum, self.codetype).upper()
+            toReturn = ppctools.construct_code(machine_code, self.bapo, self.xor, self.chksum, self.codetype)
             if outputfile is not None:
                 if filetype == 'text':
                     with open(outputfile, 'w+') as output:

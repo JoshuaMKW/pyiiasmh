@@ -172,15 +172,19 @@ def asm_opcodes(tmpdir, txtfile):
                             tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE).communicate()
 
+    print(output)
+
     if output[1]:
         errormsg = str(output[1], encoding="utf-8")
+        print(errormsg)
         errormsg = errormsg.replace(txtfile + ":", "^")[23:]
 
         with open(txtfile, "r") as asm:
-            assembly = asm.read()
-            for i, index in enumerate(re.findall(r"(?<=\^)\d+", errormsg)):
-                instruction = assembly.split("\n")[int(index, 10) - 1].lstrip()
-                errormsg = re.sub(r"(?<! )\^", enclose_string(instruction) + "\n ^", errormsg + "\n\n", count=1)
+            assembly = asm.read().split("\n")
+
+        for i, index in enumerate(re.findall(r"(?<=\^)\d+", errormsg)):
+            instruction = assembly[int(index, 10) - 1].lstrip()
+            errormsg = re.sub(r"(?<! )\^", enclose_string(instruction) + "\n ^", errormsg + "\n\n", count=1)
 
         raise RuntimeError(errormsg)
 
@@ -200,8 +204,19 @@ def asm_opcodes(tmpdir, txtfile):
                 log.exception(e)
                 rawhex = "The compile was corrupt,\nplease try again.\n"
     except IOError:
+        with open(txtfile, "r") as asm:
+            assembly = asm.read().split("\n")
+
         log.exception("Failed to open '" + tmpfile + "'")
-        rawhex = str(res[1])
+        resSegments = str(res[1]).split(r"\r\n")
+        for segment in resSegments:
+            try:
+                index = int(re.findall(r"(?<=\(\.text\+)[0-9a-fA-Fx]+", segment)[0], 16) >> 2
+                msg = re.findall(r"(?<=\): ).+", segment)[0]
+                instruction = assembly[index + 1].lstrip()
+            except (TypeError, IndexError):
+                continue
+            rawhex += f"{enclose_string(instruction)}\n ^{index}: Error: {msg}\n\n"
 
     return rawhex
 
