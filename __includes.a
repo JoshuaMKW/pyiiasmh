@@ -37,9 +37,16 @@
 # Syntax: __set <register> <value>
 #
 # Sets a register to be <value>
-    .if \value > 0x7FFF || \value < 0
-        lis \register, \value@h
-        ori \register, \register, \value@l
+#
+# Note: Negative values are buggy, try using unsigned versions of these values
+# e.g. -0x20 -> 0xFFFFFFE0, -0x1000 -> 0xFFFFF000
+    .if \value > 0x7FFF || \value < -0x7FFF
+        .if (\value > 0xFFFF || \value < -0xFFFF) && (\value & 0xFFFF) == 0
+            lis \register, (\value >> 16)
+        .else
+            lis \register, \value@h
+            ori \register, \register, \value@l
+        .endif
     .else
         li \register, \value
     .endif
@@ -50,6 +57,10 @@
 #
 # Pushes the stack frame by <size>, storing all gprs starting at <floor_gpr>
 # <save_lr> preserves the lr state, and is an optional argument, use NONE if not desired
+    .if \size <= 0
+        .error "Negative and null stack sizes are invalid"
+    .endif
+
     .if \save_lr == TRUE
         mflr r0
         stw r0, 0x4 (sp)
@@ -64,6 +75,10 @@
 #
 # Pops the stack frame by <size>, restoring all gprs starting at <floor_gpr>
 # <restore_lr> restores the lr state, and is an optional argument; use NONE if not desired
+    .if \size <= 0
+        .error "Negative and null stack sizes are invalid"
+    .endif
+    
     lmw \floor_gpr, 0x8 (sp)
     addi sp, sp, ((\size + 15) & -16)
 
