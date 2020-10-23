@@ -27,10 +27,7 @@
 import os
 import re
 import sys
-import time
-import shutil
 import logging
-import binascii
 import subprocess
 
 from struct import calcsize
@@ -40,12 +37,12 @@ log = None
 eabi = {}
 vdappc = ""
 
-def resource_path(relative_path):
+def resource_path(relative_path: str = "") -> str:
     """ Get absolute path to resource, works for dev and for PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
-def sanitizeLabel(label):
+def sanitizeLabel(label: str) -> str:
     label = label.rstrip()
     sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
     whitespace = " \n\t\r"
@@ -149,7 +146,7 @@ def setup():
     log.addHandler(hdlr)
 
 
-def asm_opcodes(tmpdir, txtfile):
+def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
     if sys.platform not in ("darwin", "linux2", "win32"):
         raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
     
@@ -218,7 +215,7 @@ def asm_opcodes(tmpdir, txtfile):
     return rawhex
 
 
-def dsm_geckocodes(tmpdir, txtfile):
+def dsm_geckocodes(tmpdir: str, txtfile: str=None) -> str:
     if sys.platform not in ("linux2", "darwin", "win32"):
         raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
     if not os.path.isfile(vdappc):
@@ -244,7 +241,7 @@ def dsm_geckocodes(tmpdir, txtfile):
     return opcodes
 
 
-def format_rawhex(rawhex):
+def format_rawhex(rawhex: str) -> str:
     # Format raw hex into readable Gecko/WiiRd codes
     code = []
 
@@ -258,7 +255,7 @@ def format_rawhex(rawhex):
     return "".join(code)
 
 
-def format_opcodes(output):
+def format_opcodes(opcodes: str) -> str:
     # Format the output from vdappc
     textOutput = []
     labels = []
@@ -268,7 +265,7 @@ def format_opcodes(output):
     nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
                           "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
 
-    for _ppcOffset, _ppcData, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, output):
+    for _ppcOffset, _ppcData, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, opcodes):
         #Branch label stuff
         if _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
             if _ppcInstruction == "b" or _ppcInstruction == "bl":
@@ -278,7 +275,7 @@ def format_opcodes(output):
 
             newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
             offset = int(_ppcOffset, 16) + SIMM
-            bInRange = offset >= 0 and offset <= len(re.findall(ppcPattern, output)) << 2
+            bInRange = offset >= 0 and offset <= len(re.findall(ppcPattern, opcodes)) << 2
             label = branchLabel.format(offset & 0xFFFFFFFC)
 
             if label and label not in labels and bInRange == True:
@@ -339,31 +336,31 @@ def format_opcodes(output):
     # Return the disassembled opcodes
     return "\n".join(textOutput)
 
-def sign_extend16(value):
+def sign_extend16(value: int) -> int:
     """ Sign extend a short """
     if value & 0x8000:
         return value - 0x10000
     else:
         return value
 
-def sign_extend32(value):
+def sign_extend32(value: int) -> int:
     """Sign extend an int """
     if value & 0x80000000:
         return value - 0x100000000
     else:
         return value
 
-def sign_extendb(value):
+def sign_extendb(value: int) -> int:
     """Sign extend a b offset"""
     if value & 0x2000000:
         return value - 0x4000000
     else:
         return value
 
-def enclose_string(string):
+def enclose_string(string: str) -> str:
     return "-"*(len(string) + 2) + "\n|" + string + "|\n" + "-"*(len(string) + 2)
 
-def align_header(rawhex, post, codetype, numbytes):
+def align_header(rawhex: str, post: str, codetype: str, numbytes: str) -> str:
     endingZeros = int(numbytes, 16) % 8
 
     if codetype == "0414":
@@ -389,7 +386,7 @@ def align_header(rawhex, post, codetype, numbytes):
             post = "00000000 00000000"[endingZeros*2:]
     return rawhex + post
 
-def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
+def construct_code(rawhex: str, bapo: str=None, xor: str=None, chksum: str=None, ctype: str=None) -> str:
     if ctype is None:
         return rawhex
 
@@ -463,7 +460,7 @@ def construct_code(rawhex, bapo=None, xor=None, chksum=None, ctype=None):
         return rawhex
 
 
-def deconstruct_code(codes, cFooter=True):
+def deconstruct_code(codes: str, cFooter: bool=True) -> str:
     if codes[:2] not in ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5"):
         return (codes, None, None, None, None)
 
