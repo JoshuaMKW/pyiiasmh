@@ -160,14 +160,13 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
     with open(txtfile, 'r+') as asmfile:
         asm = "\n".join([sanitizeOpcodes(line).replace(";", "#", 1) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n").replace(";", "#", 1) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
         asmfile.seek(0)
-        print(".include \"__includes.s\"\n" + asm)
         asmfile.write(".include \"__includes.s\"\n" + asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
     output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
-                            tmpdir + "src1.o", txtfile], stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE).communicate()
+                            tmpdir + "src1.o", txtfile], shell=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 
     if output[1]:
         errormsg = str(output[1], encoding="utf-8")
@@ -183,10 +182,12 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
         raise RuntimeError(errormsg)
 
     res = subprocess.Popen([eabi["ld"], "-Ttext", "0x80000000", "-o",
-                    tmpdir+"src2.o", tmpdir+"src1.o"], stderr=subprocess.PIPE).communicate()
+                    tmpdir+"src2.o", tmpdir+"src1.o"],
+                    shell=True, stderr=subprocess.PIPE).communicate()
 
     subprocess.Popen([eabi["objcopy"], "-O", "binary",
-                    tmpdir + "src2.o", tmpfile], stderr=subprocess.PIPE).communicate()
+                    tmpdir + "src2.o", tmpfile],
+                    shell=True, stderr=subprocess.PIPE).communicate()
 
     rawhex = ""
     try:
@@ -224,8 +225,8 @@ def dsm_geckocodes(tmpdir: str, txtfile: str=None) -> str:
 
     tmpfile = os.path.join(tmpdir, "code.bin")
 
-    output = subprocess.Popen([vdappc, tmpfile, "0"], stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE).communicate()
+    output = subprocess.Popen([vdappc, tmpfile, "0"], shell=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
 
     if output[1]:
         raise RuntimeError(output[1])
