@@ -36,6 +36,7 @@ import pickle as cPickle
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 from pyiiasmh_cli import PyiiAsmhApp
+from errors import UnsupportedOSError
 import mainwindow_ui
 import children_ui
 
@@ -346,10 +347,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.exception(e)
 
     def load_prefs(self):
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+        elif sys.platform == "darwin":
+            datapath = os.path.join(os.path.expanduser("~"), "Library", "Application Support", ".PyiiASMH-3")
+        elif "linux" in sys.platform:
             datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
         else:
-            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+            raise UnsupportedOSError(f"{sys.platform} OS is unsupported")
 
         try:
             with open(os.path.join(datapath, ".last.psav"), "rb") as f:
@@ -429,10 +434,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.warning("No preferences file found; using defaults.")
 
     def save_prefs(self):
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+        elif sys.platform == "darwin":
+            datapath = os.path.join(os.path.expanduser("~"), "Library", "Application Support", ".PyiiASMH-3")
+        elif "linux" in sys.platform:
             datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
         else:
-            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+            raise UnsupportedOSError(f"{sys.platform} OS is unsupported")
 
         self.prefs["confirm"] = self.uiprefs.confirmation.isChecked()
         self.prefs["loadlast"] = self.uiprefs.loadLast.isChecked()
@@ -504,10 +513,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.uibuiltins.funcSelect.currentRowChanged.connect(lambda: self.uibuiltins.update_info())
 
     def run(self):
-        if sys.platform != "win32":
+        if sys.platform == "win32":
+            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+        elif sys.platform == "darwin":
+            datapath = os.path.join(os.path.expanduser("~"), "Library", "Application Support", ".PyiiASMH-3")
+        elif "linux" in sys.platform:
             datapath = os.path.join(os.getenv("HOME"), ".PyiiASMH-3")
         else:
-            datapath = os.path.join(os.getenv("APPDATA"), "PyiiASMH-3")
+            raise UnsupportedOSError(f"{sys.platform} OS is unsupported")
 
         if not os.path.isdir(datapath):
             os.mkdir(datapath)

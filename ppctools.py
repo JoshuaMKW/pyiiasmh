@@ -110,7 +110,7 @@ def setup():
     for i in ("as", "ld", "objcopy"):
         eabi[i] = resource_path(os.path.join("lib/", sys.platform))
 
-        if sys.platform == "linux2":
+        if "linux" in sys.platform:
             if calcsize("P") * 8 == 64:
                 eabi[i] += "_x86_64"
             else:
@@ -126,7 +126,7 @@ def setup():
     # Pathname for vdappc executable
     vdappc = resource_path(os.path.join("lib/", sys.platform))
 
-    if sys.platform == "linux2":
+    if "linux" in sys.platform:
         if calcsize("P") * 8 == 64:
             vdappc += "_x86_64"
         else:
@@ -147,8 +147,8 @@ def setup():
 
 
 def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
-    if sys.platform not in ("darwin", "linux2", "win32"):
-        raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
+    if sys.platform not in ("darwin", "linux2", "linux", "win32"):
+        raise UnsupportedOSError(f"{sys.platform} OS is not supported")
     
     for i in ("as", "ld", "objcopy"):
         if not os.path.isfile(eabi[i]):
@@ -216,8 +216,9 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
 
 
 def dsm_geckocodes(tmpdir: str, txtfile: str=None) -> str:
-    if sys.platform not in ("linux2", "darwin", "win32"):
-        raise UnsupportedOSError("'" + sys.platform + "' os is not supported")
+    if sys.platform not in ("darwin", "linux2", "linux", "win32"):
+        raise UnsupportedOSError(f"{sys.platform} OS is not supported")
+
     if not os.path.isfile(vdappc):
         raise FileNotFoundError(vdappc + " not found")
 
