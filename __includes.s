@@ -37,15 +37,12 @@
 # Syntax: __set <register> <value>
 #
 # Sets a register to be <value>
-#
-# Note: Negative values are buggy, try using unsigned versions of these values
-# e.g. -0x20 -> 0xFFFFFFE0, -0x1000 -> 0xFFFFF000
     .if \value > 0x7FFF || \value < -0x7FFF
-        .if (\value > 0xFFFF || \value < -0xFFFF) && (\value & 0xFFFF) == 0
-            lis \register, (\value >> 16)
+        .if ((\value >> 16) != 0) && ((\value & 0xFFFF) == 0)
+            lis \register, \value@h
         .else
             lis \register, \value@h
-            ori \register, \register, \value@l
+            ori \register, \register, \value & 0xFFFF
         .endif
     .else
         li \register, \value

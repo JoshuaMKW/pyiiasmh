@@ -37,77 +37,104 @@ class PrefsUi(QtWidgets.QDialog):
 
     def setupUi(self):
         self.setObjectName("Dialog")
-        self.resize(300, 234)
-        self.setMinimumSize(QtCore.QSize(300, 234))
-        self.setBaseSize(QtCore.QSize(300, 234))
-        self.setMaximumSize(QtCore.QSize(300, 234))
+        self.resize(0, 0)
+        #self.setMinimumSize(QtCore.QSize(300, 246))
+        #self.setMaximumSize(QtCore.QSize(300, 246))
         self.setModal(True)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
-        self.buttonBox.setGeometry(QtCore.QRect(10, 194, 281, 32))
+        self.buttonBox.setMinimumSize(QtCore.QSize(280, 40))
+        self.buttonBox.setMaximumSize(QtCore.QSize(280, 40))
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel|QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
-        self.formLayoutWidget = QtWidgets.QWidget(self)
-        self.formLayoutWidget.setGeometry(QtCore.QRect(10, 10, 271, 121))
+
+        self.centerWidget = QtWidgets.QWidget(self)
+        self.centerWidget.setObjectName("centralwidget")
+
+        self.formLayoutWidget = QtWidgets.QGridLayout(self)
         self.formLayoutWidget.setObjectName("formLayoutWidget")
-        self.checkBoxLayout = QtWidgets.QGridLayout(self.formLayoutWidget)
-        self.checkBoxLayout.setContentsMargins(0, 0, 0, 0)
-        self.checkBoxLayout.setVerticalSpacing(0)
-        self.checkBoxLayout.setObjectName("checkBoxLayout")
+
+        self.codeSettingsLayout = QtWidgets.QGridLayout()
+        self.codeSettingsLayout.setVerticalSpacing(8)
+        self.codeSettingsLayout.setObjectName("codeSettingsLayout")
 
         #confirmation
-        self.confirmation = QtWidgets.QCheckBox(self.formLayoutWidget)
+        self.confirmation = QtWidgets.QCheckBox()
         self.confirmation.setChecked(True)
         self.confirmation.setObjectName("confirmation")
-        self.checkBoxLayout.addWidget(self.confirmation, 0, 0, 1, 1)
+        self.codeSettingsLayout.addWidget(self.confirmation, 0, 0, 1, 1)
 
         #loadLast
-        self.loadLast = QtWidgets.QCheckBox(self.formLayoutWidget)
+        self.loadLast = QtWidgets.QCheckBox()
         self.loadLast.setObjectName("loadLast")
-        self.checkBoxLayout.addWidget(self.loadLast, 1, 0, 1, 1)
+        self.codeSettingsLayout.addWidget(self.loadLast, 1, 0, 1, 1)
 
         #autodecorate
-        self.autodecorate = QtWidgets.QCheckBox(self.formLayoutWidget)
+        self.autodecorate = QtWidgets.QCheckBox()
         self.autodecorate.setChecked(True)
         self.autodecorate.setObjectName("autodecorate")
-        self.checkBoxLayout.addWidget(self.autodecorate, 2, 0, 1, 1)
+        self.codeSettingsLayout.addWidget(self.autodecorate, 2, 0, 1, 1)
 
         #formalnaming
-        self.formalnaming = QtWidgets.QCheckBox(self.formLayoutWidget)
+        self.formalnaming = QtWidgets.QCheckBox()
         self.formalnaming.setObjectName("formalnaming")
-        self.checkBoxLayout.addWidget(self.formalnaming, 3, 0, 1, 1)
+        self.codeSettingsLayout.addWidget(self.formalnaming, 3, 0, 1, 1)
 
-        self.gridLayoutWidget = QtWidgets.QWidget(self)
-        self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 130, 271, 58))
-        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
-        self.comboBoxLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
-        self.comboBoxLayout.setContentsMargins(0, 0, 0, 0)
+        #codetype label
+        self.codetypeLabel = QtWidgets.QLabel()
+        self.codetypeLabel.setObjectName("codetypeLabel")
+        self.codeSettingsLayout.addWidget(self.codetypeLabel, 4, 0, 1, 1)
+        
+        #codetype box
+        self.codetypeSelect = QtWidgets.QComboBox()
+        self.codetypeSelect.setMaximumWidth(110)
+        self.codetypeSelect.setObjectName("codetypeSelect")
+        self.codetypeSelect.addItems(["", "", "", "", "", ""])
+        self.codeSettingsLayout.addWidget(self.codetypeSelect, 4, 1, 1, 1)
+
+        self.comboBoxLayout = QtWidgets.QGridLayout()
         self.comboBoxLayout.setVerticalSpacing(10)
         self.comboBoxLayout.setObjectName("comboBoxLayout")
 
-        #codetype box
-        self.codetypeSelect = QtWidgets.QComboBox(self.gridLayoutWidget)
-        self.codetypeSelect.setObjectName("codetypeSelect")
-        self.codetypeSelect.addItems(["", "", "", "", "", ""])
-        self.comboBoxLayout.addWidget(self.codetypeSelect, 0, 1, 1, 1)
-
-        #codetype label
-        self.codetypeLabel = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.codetypeLabel.setObjectName("codetypeLabel")
-        self.comboBoxLayout.addWidget(self.codetypeLabel, 0, 0, 1, 1)
-
         #qtstyle box
-        self.qtstyleSelect = QtWidgets.QComboBox(self.gridLayoutWidget)
+        self.qtstyleSelect = QtWidgets.QComboBox()
+        self.qtstyleSelect.setMaximumWidth(110)
         self.qtstyleSelect.setObjectName("qtstyleSelect")
         self.comboBoxLayout.addWidget(self.qtstyleSelect, 1, 1, 1, 1)
 
         #qtstyle label
-        self.qtstyleLabel = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.qtstyleLabel = QtWidgets.QLabel()
         self.qtstyleLabel.setObjectName("qtstyleLabel")
         self.comboBoxLayout.addWidget(self.qtstyleLabel, 1, 0, 1, 1)
+
+        #qtdark theme
+        self.qtdarkButton = QtWidgets.QCheckBox()
+        self.qtdarkButton.setObjectName("formalnaming")
+        self.qtdarkButton.setText("Dark Theme")
+        self.comboBoxLayout.addWidget(self.qtdarkButton, 2, 0, 1, 1)
+
+        #horizontal separater 1
+        self.horiSepA = QtWidgets.QFrame(self.centerWidget)
+        self.horiSepA.setMinimumSize(QtCore.QSize(280, 30))
+        self.horiSepA.setFrameShape(QtWidgets.QFrame.HLine)
+        self.horiSepA.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.horiSepA.setObjectName("horiSepA")
+
+        #horizontal separater 2
+        self.horiSepB = QtWidgets.QFrame(self.centerWidget)
+        self.horiSepB.setMinimumSize(QtCore.QSize(280, 30))
+        self.horiSepB.setFrameShape(QtWidgets.QFrame.HLine)
+        self.horiSepB.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.horiSepB.setObjectName("horiSepB")
+
+        self.formLayoutWidget.addLayout(self.codeSettingsLayout, 0, 0, 1, 1)
+        self.formLayoutWidget.addWidget(self.horiSepA, 1, 0, 1, 1)
+        self.formLayoutWidget.addLayout(self.comboBoxLayout, 2, 0, 1, 1)
+        self.formLayoutWidget.addWidget(self.horiSepB, 3, 0, 1, 1)
+        self.formLayoutWidget.addWidget(self.buttonBox, 4, 0, 1, 1)
 
         self.retranslateUi()
         self.codetypeSelect.setCurrentIndex(5)
@@ -211,7 +238,7 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         _docs = []
         _types = []
 
-        with open("__includes.a", "r") as builtins:
+        with open("__includes.s", "r") as builtins:
             commentready = False
             _documentation = ""
             for line in builtins.readlines():

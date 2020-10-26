@@ -55,9 +55,11 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.filename = None
         self.prefs = {"confirm": True, "loadlast": False,
                       "autodecorate": True, "formalnaming": False,
-                      "codetype": "RAW", "qtstyle": "Default"}
+                      "codetype": "RAW", "qtstyle": "Default",
+                      "darktheme": False}
         
         self.default_qtstyle = None
+        self.style_log = []
 
     def convert(self, action: Actions):
         self.get_uivars(action)
@@ -395,6 +397,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
                     if p.get("autodecorate") in (True, False):
                         self.prefs["autodecorate"] = p.get("autodecorate")
 
+                    if p.get("darktheme") in (True, False):
+                        self.prefs["darktheme"] = p.get("darktheme")
+
                     if (p.get("qtstyle") in list(QtWidgets.QStyleFactory.keys()) or
                             p.get("qtstyle") == "Default"):
                         self.prefs["qtstyle"] = p.get("qtstyle")
@@ -418,6 +423,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                     self.uiprefs.loadLast.setChecked(self.prefs.get("loadlast"))
                     self.uiprefs.formalnaming.setChecked(self.prefs.get("formalnaming"))
                     self.uiprefs.autodecorate.setChecked(self.prefs.get("autodecorate"))
+                    self.uiprefs.qtdarkButton.setChecked(self.prefs.get("darktheme"))
+                    self.update_theme()
         except FileNotFoundError:
             self.log.warning("No preferences file found; using defaults.")
 
@@ -433,6 +440,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.prefs["formalnaming"] = self.uiprefs.formalnaming.isChecked()
         self.prefs["autodecorate"] = self.uiprefs.autodecorate.isChecked()
         self.prefs["qtstyle"] = str(self.uiprefs.qtstyleSelect.currentText())
+        self.prefs["darktheme"] = self.uiprefs.qtdarkButton.isChecked()
         self.ui.set_close_event(self.prefs.get("confirm"))
 
         try:
@@ -448,6 +456,11 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.exception(e)
 
     def load_qtstyle(self, style, first_style_load=False):
+        self.style_log.append( [self.app.style, self.uiprefs.qtstyleSelect.currentText()] )
+
+        if len(self.style_log) > 2:
+            self.style_log.pop(0)
+
         if style != "Default":
             self.app.setStyle(style)
         else:
@@ -457,6 +470,16 @@ class PyiiAsmhGui(PyiiAsmhApp):
             setCIndex = self.uiprefs.qtstyleSelect.setCurrentIndex
             setCIndex(self.uiprefs.qtstyleSelect.findText(style,
                                                           flags=QtCore.Qt.MatchFixedString))
+
+    def update_theme(self):
+        if self.uiprefs.qtdarkButton.isChecked():
+            self.app.setPalette(self.ui.DarkTheme)
+            self.load_qtstyle("Fusion", True)
+            self.uiprefs.qtstyleSelect.setDisabled(True)
+        else:
+            self.app.setPalette(self.ui.LightTheme)
+            self.load_qtstyle(self.style_log[0][1], True)
+            self.uiprefs.qtstyleSelect.setEnabled(True)
 
     def connect_signals(self):
         self.ui.asmButton.clicked.connect(lambda: self.convert(PyiiAsmhGui.Actions.ASSEMBLE))
@@ -476,6 +499,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         self.uiprefs.buttonBox.accepted.connect(self.save_prefs)
         self.uiprefs.qtstyleSelect.currentIndexChanged.connect(lambda: self.load_qtstyle(self.uiprefs.qtstyleSelect.currentText()))
+        self.uiprefs.qtdarkButton.clicked.connect(lambda: self.update_theme())
 
         self.uibuiltins.funcSelect.currentRowChanged.connect(lambda: self.uibuiltins.update_info())
 

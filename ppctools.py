@@ -42,7 +42,7 @@ def resource_path(relative_path: str = "") -> str:
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
-def sanitizeLabel(label: str) -> str:
+def sanitizeOpcodes(label: str) -> str:
     label = label.rstrip()
     sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
     whitespace = " \n\t\r"
@@ -58,10 +58,10 @@ def sanitizeLabel(label: str) -> str:
     for i, char in enumerate(label):
 
         if char == "#": iscomment = True
-        if char == "(" and iscomment == False: isparen = True
+        if char == "(" and iscomment is False: isparen = True
         if char == ")": isparen = False
 
-        if char == "." and iscomment == False and i+2 < len(label) and isinstruction == True:
+        if char == "." and iscomment is False and i+2 < len(label) and isinstruction == True:
             if label[i+1] != "s" or label[i+2] != "e":
                 return label
 
@@ -158,10 +158,10 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
         txtfile = os.path.join(tmpdir, "code.txt")
 
     with open(txtfile, 'r+') as asmfile:
-        asm = "\n".join([sanitizeLabel(line) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n") for line in asmfile]) + "\n"
+        asm = "\n".join([sanitizeOpcodes(line).replace(";", "#", 1) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n").replace(";", "#", 1) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
         asmfile.seek(0)
-        asmfile.write(".include \"__includes.a\"\n")
-        asmfile.write(asm)
+        print(".include \"__includes.s\"\n" + asm)
+        asmfile.write(".include \"__includes.s\"\n" + asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
@@ -400,7 +400,7 @@ def construct_code(rawhex: str, bapo: str=None, xor: str=None, chksum: str=None,
     except ValueError:
         isFailed = True
 
-    if isFailed == False:
+    if isFailed is False:
         if rawhex[-1] == " ":
             post = " 00000000"
         else:

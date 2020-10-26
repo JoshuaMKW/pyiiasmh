@@ -30,11 +30,29 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 class MainWindowUi(QtWidgets.QMainWindow):
+
     def __init__(self):
         super().__init__()
 
         self.close_event = False
         self.setupUi()
+
+        self.LightTheme = self.palette()
+
+        self.DarkTheme = QtGui.QPalette()
+        self.DarkTheme.setColor(QtGui.QPalette.Window, QtGui.QColor(53, 53, 53))
+        self.DarkTheme.setColor(QtGui.QPalette.WindowText, QtCore.Qt.white)
+        self.DarkTheme.setColor(QtGui.QPalette.Base, QtGui.QColor(25, 25, 25))
+        self.DarkTheme.setColor(QtGui.QPalette.AlternateBase, QtGui.QColor(53, 53, 53))
+        self.DarkTheme.setColor(QtGui.QPalette.ToolTipBase, QtCore.Qt.black)
+        self.DarkTheme.setColor(QtGui.QPalette.ToolTipText, QtCore.Qt.white)
+        self.DarkTheme.setColor(QtGui.QPalette.Text, QtCore.Qt.white)
+        self.DarkTheme.setColor(QtGui.QPalette.Button, QtGui.QColor(53, 53, 53))
+        self.DarkTheme.setColor(QtGui.QPalette.ButtonText, QtCore.Qt.white)
+        self.DarkTheme.setColor(QtGui.QPalette.BrightText, QtCore.Qt.red)
+        self.DarkTheme.setColor(QtGui.QPalette.Link, QtGui.QColor(42, 130, 218))
+        self.DarkTheme.setColor(QtGui.QPalette.Highlight, QtGui.QColor(42, 130, 218))
+        self.DarkTheme.setColor(QtGui.QPalette.HighlightedText, QtCore.Qt.black)
 
     def set_close_event(self, close_event):
         self.close_event = close_event
@@ -564,4 +582,3 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.actionAbout_PyiiASMH.setText(QtWidgets.QApplication.translate("MainWindow", "About &PyiiASMH 3...", None))
         self.actionAbout_Qt.setText(QtWidgets.QApplication.translate("MainWindow", "About &Qt...", None))
         self.actionBuiltins_Help.setText(QtWidgets.QApplication.translate("MainWindow", "Builtins...", None))
-
