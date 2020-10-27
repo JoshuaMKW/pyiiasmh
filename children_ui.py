@@ -26,6 +26,7 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import sys
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
@@ -178,8 +179,14 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         self.setWindowIcon(icon)
 
         self.objtypebar = QtWidgets.QPlainTextEdit(self)
-        self.objtypebar.setMinimumSize(QtCore.QSize(400, 32))
-        self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 32))
+        
+        if "linux" in sys.platform:
+            self.objtypebar.setMinimumSize(QtCore.QSize(400, 36))
+            self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 36))
+        else:
+            self.objtypebar.setMinimumSize(QtCore.QSize(400, 32))
+            self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 32))
+
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(13)
@@ -270,7 +277,11 @@ class BuiltinsDocUI(QtWidgets.QDialog):
             self.docs.append((_names[i], _docs[i], _types[i]))
 
     def update_info(self):
-        self.objtypebar.setPlainText(self.docs[self.funcSelect.currentRow()][2].center(51, " ").upper())
+        if "linux" in sys.platform:
+            self.objtypebar.setPlainText(self.docs[self.funcSelect.currentRow()][2].center(45, " ").upper())
+        else:
+            self.objtypebar.setPlainText(self.docs[self.funcSelect.currentRow()][2].center(51, " ").upper())
+            
         self.docuTextBox.setPlainText(self.docs[self.funcSelect.currentRow()][1])
 
 

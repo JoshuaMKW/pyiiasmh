@@ -27,6 +27,8 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import sys
+
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 class MainWindowUi(QtWidgets.QMainWindow):
@@ -101,7 +103,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.codeinfoLayout.setHorizontalSpacing(5)
         self.codeinfoLayout.setObjectName("codeinfoLayout")
         
-        #XOR Textbox
+        #XOR Label
         self.xorLabel = QtWidgets.QLabel(self.centralwidget)
         self.xorLabel.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -115,6 +117,8 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.xorLabel.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.xorLabel.setObjectName("xorLabel")
         self.codeinfoLayout.addWidget(self.xorLabel, 0, 0, 1, 1)
+
+        #XOR Textbox
         self.xorLineEdit = QtWidgets.QLineEdit(self.centralwidget)
         self.xorLineEdit.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -122,8 +126,14 @@ class MainWindowUi(QtWidgets.QMainWindow):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.xorLineEdit.sizePolicy().hasHeightForWidth())
         self.xorLineEdit.setSizePolicy(sizePolicy)
-        self.xorLineEdit.setMinimumSize(QtCore.QSize(43, 23))
-        self.xorLineEdit.setMaximumSize(QtCore.QSize(43, 23))
+
+        if "linux" in sys.platform:
+            self.xorLineEdit.setMinimumSize(QtCore.QSize(50, 23))
+            self.xorLineEdit.setMaximumSize(QtCore.QSize(50, 23))
+        else:
+            self.xorLineEdit.setMinimumSize(QtCore.QSize(43, 23))
+            self.xorLineEdit.setMaximumSize(QtCore.QSize(43, 23))
+
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(12)
@@ -134,6 +144,8 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.xorLineEdit.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignCenter|QtCore.Qt.AlignVCenter)
         self.xorLineEdit.setObjectName("xorLineEdit")
         self.codeinfoLayout.addWidget(self.xorLineEdit, 0, 2, 1, 1)
+
+        #Checksum Label
         self.checksumLabel = QtWidgets.QLabel(self.centralwidget)
         self.checksumLabel.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -146,6 +158,8 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.checksumLabel.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.checksumLabel.setObjectName("checksumLabel")
         self.codeinfoLayout.addWidget(self.checksumLabel, 1, 0, 1, 1)
+
+        #Checksum Textbox
         self.checksumLineEdit = QtWidgets.QLineEdit(self.centralwidget)
         self.checksumLineEdit.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -153,8 +167,14 @@ class MainWindowUi(QtWidgets.QMainWindow):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.checksumLineEdit.sizePolicy().hasHeightForWidth())
         self.checksumLineEdit.setSizePolicy(sizePolicy)
-        self.checksumLineEdit.setMinimumSize(QtCore.QSize(25, 23))
-        self.checksumLineEdit.setMaximumSize(QtCore.QSize(25, 23))
+        
+        if "linux" in sys.platform:
+            self.checksumLineEdit.setMinimumSize(QtCore.QSize(30, 23))
+            self.checksumLineEdit.setMaximumSize(QtCore.QSize(30, 23))
+        else:
+            self.checksumLineEdit.setMinimumSize(QtCore.QSize(25, 23))
+            self.checksumLineEdit.setMaximumSize(QtCore.QSize(25, 23))
+
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(12)
@@ -190,7 +210,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
 
         self.codetypeLayout.addWidget(self.codetypeSelect, 0, 3, 1, 1)
 
-        #BA/PO Address textbox
+        #BA/PO Address Label
         self.bapoLabel = QtWidgets.QLabel(self.centralwidget)
         self.bapoLabel.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -206,6 +226,8 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.bapoLabel.setWordWrap(True)
         self.bapoLabel.setObjectName("bapoLabel")
         self.codetypeLayout.addWidget(self.bapoLabel, 1, 0, 1, 1)
+
+        #BA/PO Address Textbox
         self.bapoLineEdit = QtWidgets.QLineEdit(self.centralwidget)
         self.bapoLineEdit.setEnabled(False)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
@@ -213,8 +235,14 @@ class MainWindowUi(QtWidgets.QMainWindow):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.bapoLineEdit.sizePolicy().hasHeightForWidth())
         self.bapoLineEdit.setSizePolicy(sizePolicy)
-        self.bapoLineEdit.setMinimumSize(QtCore.QSize(79, 23))
-        self.bapoLineEdit.setMaximumSize(QtCore.QSize(79, 23))
+        
+        if "linux" in sys.platform:
+            self.bapoLineEdit.setMinimumSize(QtCore.QSize(90, 23))
+            self.bapoLineEdit.setMaximumSize(QtCore.QSize(90, 23))
+        else:
+            self.bapoLineEdit.setMinimumSize(QtCore.QSize(79, 23))
+            self.bapoLineEdit.setMaximumSize(QtCore.QSize(79, 23))
+
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(12)
