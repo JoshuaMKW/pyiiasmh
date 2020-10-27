@@ -179,7 +179,6 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         self.setWindowIcon(icon)
 
         self.objtypebar = QtWidgets.QPlainTextEdit(self)
-
         font = QtGui.QFont()
         font.setFamily("Consolas")
         font.setPointSize(13)
@@ -187,6 +186,8 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         fontMetrics = QtGui.QFontMetricsF(font)
         spaceWidth = fontMetrics.width(' ')
         self.objtypebar.setFont(font)
+        self.objtypebar.setMinimumSize(QtCore.QSize(400, 32))
+        self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 32))
         self.objtypebar.setTabStopDistance(spaceWidth * 4)
         self.objtypebar.setReadOnly(True)
         self.objtypebar.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
