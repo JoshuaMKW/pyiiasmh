@@ -179,13 +179,6 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         self.setWindowIcon(icon)
 
         self.objtypebar = QtWidgets.QPlainTextEdit(self)
-        
-        if "linux" in sys.platform:
-            self.objtypebar.setMinimumSize(QtCore.QSize(400, 36))
-            self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 36))
-        else:
-            self.objtypebar.setMinimumSize(QtCore.QSize(400, 32))
-            self.objtypebar.setMaximumSize(QtCore.QSize(16777215, 32))
 
         font = QtGui.QFont()
         font.setFamily("Consolas")
