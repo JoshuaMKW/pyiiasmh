@@ -166,7 +166,7 @@ class PyiiAsmhApp(object):
 
         return toReturn
 
-    def run(self, filetype='text'):
+    def run(self, parser, args, filetype='text'):
         # Check for incorrect usage
         if args.codetype.upper() == 'RAW':
             self.codetype = None
@@ -190,8 +190,7 @@ class PyiiAsmhApp(object):
         else:
             parser.print_help()
 
-
-if __name__ == "__main__":
+def ppc_exec():
     parser = ArgumentParser(prog='PyiiASMH 3',
                             description='Gecko code compiler for PPC assembly',
                             allow_abbrev=False)
@@ -259,15 +258,18 @@ if __name__ == "__main__":
             parser.error('The given samples value {} is too large'.format(args.samples))
 
     if args.dest and args.assemble:
-        if args.dest[-4:].lower() == '.txt':
+        if os.path.splitext(args.dest)[1].lower() == '.txt':
             dumptype = 'text'
-        elif args.dest[-4:].lower() in ('.bin', '.gct'):
+        elif os.path.splitext(args.dest)[1].lower() in ('.bin', '.gct'):
             dumptype = 'bin'
         else:
             parser.error('Destination file {} is invalid type'.format(args.dest))
     elif args.dest and args.disassemble:
-        if args.dest[-4:].lower() != '.txt':
+        if os.path.splitext(args.dest)[1].lower() != '.txt':
             parser.error('Destination file {} is invalid type'.format(args.dest))
-    
+
     app = PyiiAsmhApp()
-    app.run(dumptype)
+    app.run(parser, args, dumptype)
+
+if __name__ == "__main__":
+    ppc_exec()

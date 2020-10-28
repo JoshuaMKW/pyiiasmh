@@ -39,7 +39,12 @@ vdappc = ""
 
 def resource_path(relative_path: str = "") -> str:
     """ Get absolute path to resource, works for dev and for PyInstaller """
-    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    if getattr(sys, "frozen", False):
+        # The application is frozen
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
     return os.path.join(base_path, relative_path)
 
 def sanitizeOpcodes(label: str) -> str:
