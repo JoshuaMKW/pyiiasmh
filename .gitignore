@@ -130,3 +130,6 @@ dmypy.json
 
 # Logging
 .log
+
+# Visual Studio
+.vs/
