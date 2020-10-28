@@ -38,7 +38,7 @@ eabi = {}
 vdappc = ""
 
 def resource_path(relative_path: str = "") -> str:
-    """ Get absolute path to resource, works for dev and for PyInstaller """
+    """ Get absolute path to resource, works for dev and for cx_freeze """
     if getattr(sys, "frozen", False):
         # The application is frozen
         base_path = os.path.dirname(sys.executable)
