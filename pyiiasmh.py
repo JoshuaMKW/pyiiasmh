@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #  PyiiASMH 3 (pyiiasmh.py)
 #  Copyright (c) 2011, 2012, Sean Power
 #  All rights reserved.

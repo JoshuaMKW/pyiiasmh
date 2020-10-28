@@ -164,12 +164,12 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
-    output = subprocess.Popen([eabi["as"], "-mregnames", "-mgekko", "-o",
+    output = subprocess.run([eabi["as"], "-mregnames", "-mgekko", "-o",
                             tmpdir + "src1.o", txtfile], shell=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+                            capture_output=True)
 
-    if output[1]:
-        errormsg = str(output[1], encoding="utf-8")
+    if output.stderr:
+        errormsg = str(output.stderr, encoding="utf-8")
         errormsg = errormsg.replace(txtfile + ":", "^")[23:]
 
         with open(txtfile, "r") as asm:
@@ -181,13 +181,12 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
 
         raise RuntimeError(errormsg)
 
-    res = subprocess.Popen([eabi["ld"], "-Ttext", "0x80000000", "-o",
-                    tmpdir+"src2.o", tmpdir+"src1.o"],
-                    shell=True, stderr=subprocess.PIPE).communicate()
+    output = subprocess.run([eabi["ld"], "-Ttext", "0x80000000", "-o",
+                          tmpdir+"src2.o", tmpdir+"src1.o"], shell=True,
+                         capture_output=True)
 
-    subprocess.Popen([eabi["objcopy"], "-O", "binary",
-                    tmpdir + "src2.o", tmpfile],
-                    shell=True, stderr=subprocess.PIPE).communicate()
+    subprocess.run([eabi["objcopy"], "-O", "binary",
+                    tmpdir + "src2.o", tmpfile], shell=True)
 
     rawhex = ""
     try:
@@ -203,7 +202,7 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
             assembly = asm.read().split("\n")
 
         log.exception("Failed to open '" + tmpfile + "'")
-        resSegments = str(res[1]).split(r"\r\n")
+        resSegments = str(output.stderr).split(r"\r\n")
         for segment in resSegments:
             try:
                 index = int(re.findall(r"(?<=\(\.text\+)[0-9a-fA-Fx]+", segment)[0], 16) >> 2
@@ -225,13 +224,13 @@ def dsm_geckocodes(tmpdir: str, txtfile: str=None) -> str:
 
     tmpfile = os.path.join(tmpdir, "code.bin")
 
-    output = subprocess.Popen([vdappc, tmpfile, "0"], shell=True,
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
+    output = subprocess.run([vdappc, tmpfile, "0"], shell=True,
+                            capture_output=True)
 
-    if output[1]:
-        raise RuntimeError(output[1])
+    if output.stderr:
+        raise RuntimeError(output.stderr)
 
-    opcodes = format_opcodes(str(output[0]))
+    opcodes = format_opcodes(str(output.stdout))
 
     if txtfile is not None:
         try:
