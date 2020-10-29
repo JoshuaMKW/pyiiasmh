@@ -239,36 +239,39 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         _docs = []
         _types = []
 
-        with open("__includes.s", "r") as builtins:
-            commentready = False
-            _documentation = ""
-            for line in builtins.readlines():
-                line.strip()
-                if line == "":
-                    continue
-                elif line.startswith("#") and commentready:
-                    _documentation += line[1:].strip() + "\n"
-                    continue
-                elif commentready:
-                    _docs.append(_documentation)
-                    commentready = False
-                    _documentation = ""
-                    continue
+        try:
+            with open("__includes.s", "r") as builtins:
+                commentready = False
+                _documentation = ""
+                for line in builtins.readlines():
+                    line.strip()
+                    if line == "":
+                        continue
+                    elif line.startswith("#") and commentready:
+                        _documentation += line[1:].strip() + "\n"
+                        continue
+                    elif commentready:
+                        _docs.append(_documentation)
+                        commentready = False
+                        _documentation = ""
+                        continue
 
-                segments = line.split(" ")
-                if segments[0] == ".set":
-                    _types.append("const")
-                elif segments[0] == ".macro":
-                    _types.append("macro")
-                else:
-                    commentready = False
-                    continue
-                
-                commentready = True
-                _names.append(segments[1].strip().rstrip(","))
+                    segments = line.split(" ")
+                    if segments[0] == ".set":
+                        _types.append("const")
+                    elif segments[0] == ".macro":
+                        _types.append("macro")
+                    else:
+                        commentready = False
+                        continue
+                    
+                    commentready = True
+                    _names.append(segments[1].strip().rstrip(","))
 
-        for i in range(len(_names)):
-            self.docs.append((_names[i], _docs[i], _types[i]))
+            for i in range(len(_names)):
+                self.docs.append((_names[i], _docs[i], _types[i]))
+        except FileNotFoundError:
+            pass
 
     def update_info(self):
         if "linux" in sys.platform:

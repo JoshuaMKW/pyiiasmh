@@ -133,3 +133,6 @@ dmypy.json
 
 # Visual Studio
 .vs/
+
+# cx_freeze
+build/
