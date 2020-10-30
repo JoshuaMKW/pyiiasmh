@@ -47,6 +47,22 @@ def resource_path(relative_path: str = "") -> str:
         
     return os.path.join(base_path, relative_path)
 
+def get_program_folder(folder: str = "") -> str:
+    """ Get path to appdata """
+    if sys.platform == "win32":
+        datapath = os.path.join(os.getenv("APPDATA"), folder)
+    elif sys.platform == "darwin":
+        if folder:
+            folder = "." + folder
+        datapath = os.path.join(os.path.expanduser("~"), "Library", "Application Support", folder)
+    elif "linux" in sys.platform:
+        if folder:
+            folder = "." + folder
+        datapath = os.path.join(os.getenv("HOME"), folder)
+    else:
+        raise UnsupportedOSError(f"{sys.platform} OS is unsupported")
+    return datapath
+
 def sanitize_opcodes(label: str) -> str:
     label = label.rstrip()
     sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
@@ -145,7 +161,7 @@ def setup():
     vdappc = os.path.normpath(vdappc)
 
     log = logging.getLogger("PyiiASMH")
-    hdlr = logging.FileHandler("error.log")
+    hdlr = logging.FileHandler(os.path.join(get_program_folder("PyiiASMH-3"), "error.log"))
     formatter = logging.Formatter("\n%(levelname)s (%(asctime)s): %(message)s")
     hdlr.setFormatter(formatter)
     log.addHandler(hdlr)

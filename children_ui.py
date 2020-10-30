@@ -39,8 +39,6 @@ class PrefsUi(QtWidgets.QDialog):
     def setupUi(self):
         self.setObjectName("Dialog")
         self.resize(0, 0)
-        #self.setMinimumSize(QtCore.QSize(300, 246))
-        #self.setMaximumSize(QtCore.QSize(300, 246))
         self.setModal(True)
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
