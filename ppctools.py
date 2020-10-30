@@ -47,7 +47,7 @@ def resource_path(relative_path: str = "") -> str:
         
     return os.path.join(base_path, relative_path)
 
-def sanitizeOpcodes(label: str) -> str:
+def sanitize_opcodes(label: str) -> str:
     label = label.rstrip()
     sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
     whitespace = " \n\t\r"
@@ -163,15 +163,16 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
         txtfile = os.path.join(tmpdir, "code.txt")
 
     with open(txtfile, 'r+') as asmfile:
-        asm = "\n".join([sanitizeOpcodes(line).replace(";", "#", 1) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n").replace(";", "#", 1) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
+        asm = "\n".join([sanitize_opcodes(line).replace(";", "#", 1) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n").replace(";", "#", 1) for line in asmfile if f".include \"__includes.s\"" not in line]) + "\n"
         asmfile.seek(0)
-        asmfile.write(".include \"__includes.s\"\n" + asm)
+        asmfile.write(f".include \"__includes.s\"\n" + asm)
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
     output = subprocess.run(f'"{eabi["as"]}" -mregnames -mgekko -o "{tmpdir}src1.o" "{txtfile}"', shell=True,
                             capture_output=True, text=True)
     if output.stderr:
+        raise RuntimeError(output.stderr)
         errormsg = output.stderr.replace(txtfile + ":", "^")[23:]
 
         with open(txtfile, "r") as asm:

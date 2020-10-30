@@ -39,10 +39,21 @@ from argparse import ArgumentParser
 import ppctools
 from errors import CodetypeError, UnsupportedOSError
 
+def resource_path(relative_path: str = "") -> str:
+    """ Get absolute path to resource, works for dev and for cx_freeze """
+    if getattr(sys, "frozen", False):
+        # The application is frozen
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
+    return os.path.join(base_path, relative_path)
 
 class PyiiAsmhApp(object):
 
     def __init__(self):
+        os.chdir(resource_path())
+        
         self.opcodes = None
         self.geckocodes = None
         self.bapo = None
