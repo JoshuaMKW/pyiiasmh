@@ -172,7 +172,6 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
     output = subprocess.run(f'"{eabi["as"]}" -mregnames -mgekko -o "{tmpdir}src1.o" "{txtfile}"', shell=True,
                             capture_output=True, text=True)
     if output.stderr:
-        raise RuntimeError(output.stderr)
         errormsg = output.stderr.replace(txtfile + ":", "^")[23:]
 
         with open(txtfile, "r") as asm:
