@@ -169,7 +169,7 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
     
     tmpfile = os.path.join(tmpdir, "code.bin")
 
-    output = subprocess.run(f'{eabi["as"]} -mregnames -mgekko -o {tmpdir}src1.o {txtfile}', shell=True,
+    output = subprocess.run(f'"{eabi["as"]}" -mregnames -mgekko -o "{tmpdir}src1.o" "{txtfile}"', shell=True,
                             capture_output=True, text=True)
     if output.stderr:
         errormsg = output.stderr.replace(txtfile + ":", "^")[23:]
@@ -183,10 +183,10 @@ def asm_opcodes(tmpdir: str, txtfile: str=None) -> str:
 
         raise RuntimeError(errormsg)
 
-    output = subprocess.run(f'{eabi["ld"]} -Ttext 0x80000000 -o {tmpdir}src2.o {tmpdir}src1.o', shell=True,
+    output = subprocess.run(f'"{eabi["ld"]}" -Ttext 0x80000000 -o "{tmpdir}src2.o" "{tmpdir}src1.o"', shell=True,
                             capture_output=True, text=True)
 
-    subprocess.run(f'{eabi["objcopy"]} -O binary {tmpdir}src2.o {tmpfile}', shell=True)
+    subprocess.run(f'"{eabi["objcopy"]}" -O binary "{tmpdir}src2.o" "{tmpfile}"', shell=True)
 
     rawhex = ""
     try:
@@ -224,7 +224,7 @@ def dsm_geckocodes(tmpdir: str, txtfile: str=None) -> str:
 
     tmpfile = os.path.join(tmpdir, "code.bin")
 
-    output = subprocess.run(f"{vdappc} {tmpfile} 0", shell=True, capture_output=True, text=True)
+    output = subprocess.run(f'"{vdappc}" "{tmpfile}" 0', shell=True, capture_output=True, text=True)
 
     if output.stderr:
         raise RuntimeError(output.stderr)
