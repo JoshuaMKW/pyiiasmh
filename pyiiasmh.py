@@ -37,7 +37,7 @@ import pickle as cPickle
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from pyiiasmh_cli import PyiiAsmhApp, ppc_exec
+from pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
 from errors import UnsupportedOSError
 import mainwindow_ui
 import children_ui
@@ -563,4 +563,4 @@ if __name__ == "__main__":
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         app.run()
     else:
-        ppc_exec()
+        _ppc_exec()
