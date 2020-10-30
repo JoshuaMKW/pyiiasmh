@@ -190,7 +190,7 @@ class PyiiAsmhApp(object):
         else:
             parser.print_help()
 
-def ppc_exec():
+def _ppc_exec():
     parser = ArgumentParser(prog='PyiiASMH 3',
                             description='Gecko code compiler for PPC assembly',
                             allow_abbrev=False)
@@ -272,4 +272,4 @@ def ppc_exec():
     app.run(parser, args, dumptype)
 
 if __name__ == "__main__":
-    ppc_exec()
+    _ppc_exec()
