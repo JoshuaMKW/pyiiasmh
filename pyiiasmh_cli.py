@@ -270,6 +270,11 @@ def _ppc_exec():
         if os.path.splitext(args.dest)[1].lower() != '.txt':
             parser.error('Destination file {} is invalid type'.format(args.dest))
 
+    args.source = os.path.abspath(args.source)
+
+    if args.dest:
+        args.dest = os.path.abspath(args.dest)
+
     app = PyiiAsmhApp()
     app.run(parser, args, dumptype)
 
