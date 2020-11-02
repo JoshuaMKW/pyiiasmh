@@ -179,12 +179,12 @@ class PyiiAsmhApp(object):
         self.xor = args.xor
         self.chksum = args.samples
 
-        if args.assemble:
+        if args.job == "a":
             if args.dest:
                 self.assemble(args.source, args.dest, filetype=filetype)
             else:
                 print('\n-----------------\n' + self.assemble(args.source, None, filetype=filetype).strip() + '\n-----------------\n')
-        elif args.disassemble:
+        elif args.job == "d":
             if args.dest:
                 self.disassemble(args.source, args.dest, filetype=filetype, cFooter=args.rmfooterasm, formalNames=args.formalnames)
             else:
@@ -198,12 +198,9 @@ def _ppc_exec():
                             allow_abbrev=False)
 
     parser.add_argument('source', help='Source file')
-    parser.add_argument('-a', '--assemble',
-                        help='Assemble the target PPC assembly code into machine code',
-                        action='store_true')
-    parser.add_argument('-d', '--disassemble',
-                        help='Disassemble the target machine code into PPC assembly',
-                        action='store_true')
+    parser.add_argument('job',
+                        help="Job to execute. Valid jobs are `a' and `d'",
+                        choices=['a', 'd'])
     parser.add_argument('--dest',
                         help='Destination file',
                         metavar='FILE')
@@ -259,14 +256,14 @@ def _ppc_exec():
         if len(args.samples) > 2:
             parser.error('The given samples value {} is too large'.format(args.samples))
 
-    if args.dest and args.assemble:
+    if args.dest and args.job == 'a':
         if os.path.splitext(args.dest)[1].lower() == '.txt':
             dumptype = 'text'
         elif os.path.splitext(args.dest)[1].lower() in ('.bin', '.gct'):
             dumptype = 'bin'
         else:
             parser.error('Destination file {} is invalid type'.format(args.dest))
-    elif args.dest and args.disassemble:
+    elif args.dest and args.job == 'd':
         if os.path.splitext(args.dest)[1].lower() != '.txt':
             parser.error('Destination file {} is invalid type'.format(args.dest))
 
@@ -274,7 +271,7 @@ def _ppc_exec():
 
     if args.dest:
         args.dest = os.path.abspath(args.dest)
-
+        
     app = PyiiAsmhApp()
     app.run(parser, args, dumptype)
 
