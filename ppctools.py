@@ -228,29 +228,30 @@ class PpcFormatter(object):
         # Format the output from vdappc
         textOutput = []
         labels = []
-        ppcPattern = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-]+)(?:[ \t]+|)([-\w,()]+|)")
+        ppcPattern = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
         branchLabel = ".loc_0x{:X}:"
         unsignedInstructions = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
         nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
-                            "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
+                              "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
+        pairedSingleLoadStores = ("psq_l", "psq_lu", "psq_st", "psq_stu")
 
-        for _ppcOffset, _ppcData, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, opcodes):
+        for _ppcOffset, _ppcRaw, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, opcodes):
             #Branch label stuff
             if _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
                 if _ppcInstruction == "b" or _ppcInstruction == "bl":
-                    SIMM = PpcFormatter._sign_extendb(int(_ppcData[1:], 16) & 0x3FFFFFC)
+                    SIMM = PpcFormatter._sign_extendb(int(_ppcRaw[1:], 16) & 0x3FFFFFC)
                 else:
-                    SIMM = PpcFormatter._sign_extend16(int(_ppcData[4:], 16) & 0xFFFC)
+                    SIMM = PpcFormatter._sign_extend16(int(_ppcRaw[4:], 16) & 0xFFFC)
 
                 newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
                 offset = int(_ppcOffset, 16) + SIMM
-                bInRange = offset >= 0 and offset <= len(re.findall(ppcPattern, opcodes)) << 2
+                bInRange = (offset >> 2) > 0 and offset <= len(re.findall(ppcPattern, opcodes)) << 2
                 label = branchLabel.format(offset & 0xFFFFFFFC)
 
-                if label and label not in labels and bInRange == True:
+                if label not in labels and bInRange is True:
                     labels.append(label)
 
-                if bInRange == True:
+                if bInRange is True or offset == 0:
                     if "," in _ppcSIMM:
                         textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), _ppcSIMM))
                     else:
@@ -260,34 +261,41 @@ class PpcFormatter(object):
                         textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), _ppcSIMM))
                     else:
                         textOutput.append("  " + _ppcInstruction.ljust(10, " ") + newSIMM.rstrip())
+            elif _ppcInstruction[:1] in ("s", "l") and _ppcInstruction.endswith("u") and _ppcSIMM[-4:] == "(r0)":
+                textOutput.append("  " + ".long".ljust(10, " ") + "0x" + _ppcRaw)
             else:
                 #Set up cleaner format
                 values = _ppcSIMM
-                if _ppcInstruction not in nonhexInstructions:
-
-                    #Format decimal values to be hex
-                    for decimal in re.findall(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", _ppcSIMM):
-                        if "(" in decimal and _ppcInstruction not in unsignedInstructions:
-                            decimal = "0x{:X}(".format(int(decimal[:-1], 10))
-                            decimal = re.sub(r"0x-", "-0x", decimal)
-                        elif _ppcInstruction not in unsignedInstructions:
-                            decimal = "0x{:X}".format(int(decimal, 10))
-                            decimal = re.sub(r"0x-", "-0x", decimal)
-                        else:
-                            if int(decimal, 10) < 0:
-                                decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
-                            else:
+                if _ppcSIMM.count(",") < 4 or _ppcInstruction in pairedSingleLoadStores:
+                    _currentfmtpos = 0
+                    for matchObj in re.finditer(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", _ppcSIMM):
+                        decimal = matchObj.group()
+                        if decimal != "0":
+                            if "(" in decimal and _ppcInstruction not in unsignedInstructions:
+                                if _ppcInstruction in pairedSingleLoadStores:
+                                    decimal = "0x{:X}(".format(PpcFormatter._sign_extendps(int(decimal[:-1], 10)))
+                                else:
+                                    decimal = "0x{:X}(".format(int(decimal[:-1], 10))
+                                decimal = decimal.replace("0x-", "-0x")
+                            elif _ppcInstruction not in unsignedInstructions:
                                 decimal = "0x{:X}".format(int(decimal, 10))
-                        if decimal == "0x0":
-                            decimal = "0"
+                                decimal = decimal.replace("0x-", "-0x")
+                            else:
+                                if int(decimal, 10) < 0:
+                                    decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
+                                else:
+                                    decimal = "0x{:X}".format(int(decimal, 10))
+                            
+                        values = values[:_currentfmtpos] + re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values[_currentfmtpos:], count=1)
+                        _currentfmtpos = matchObj.end() + (len(decimal) - (matchObj.end() - matchObj.start()))
 
-                        values = re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values, count=1)
-                    values = re.sub(",", ", ", values)
+                    if _ppcInstruction not in pairedSingleLoadStores:
+                        values = values.replace(",", ", ")
 
                 elif _ppcInstruction == "crclr" or _ppcInstruction == "crse":
                     values = re.sub(r",\d", "", values)
 
-                textOutput.append("  " + _ppcInstruction.replace("word", "long").ljust(10, " ") + values.rstrip())
+                textOutput.append("  " + _ppcInstruction.replace(".word", ".long").ljust(10, " ") + values.rstrip())
 
         #Set up labels in text output
         textOutput.insert(0, branchLabel.format(0))
@@ -315,7 +323,7 @@ class PpcFormatter(object):
 
     @staticmethod
     def _sign_extend32(value: int) -> int:
-        """Sign extend an int """
+        """ Sign extend an int """
         if value & 0x80000000:
             return value - 0x100000000
         else:
@@ -323,9 +331,17 @@ class PpcFormatter(object):
 
     @staticmethod
     def _sign_extendb(value: int) -> int:
-        """Sign extend a b offset"""
+        """ Sign extend a b offset """
         if value & 0x2000000:
             return value - 0x4000000
+        else:
+            return value
+
+    @staticmethod
+    def _sign_extendps(value: int) -> int:
+        """ Sign extend a paired single load/store """
+        if value & 0x800:
+            return value - 0x1000
         else:
             return value
 
@@ -482,6 +498,7 @@ class PpcFormatter(object):
     @staticmethod
     def sanitize_opcodes(label: str) -> str:
         label = label.rstrip()
+        ppcPattern = re.compile(r"(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([\. \t\-\w,()]+|)")
         sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
         whitespace = " \n\t\r"
         iscomment = False
@@ -489,15 +506,41 @@ class PpcFormatter(object):
         isinstruction = True
 
         newstr = []
+        try:
+            _ppcInstruction, _ppcSIMM = re.findall(ppcPattern, label)[0]
+        except IndexError:
+            pass
+        else:
+            if "," in _ppcSIMM:
+                ofs = re.compile(r"(?<=[\+\-\s]).+")
+            else:
+                ofs = re.compile(r".+")
 
-        if ".asciz" in label:
-            return label
+            if _ppcInstruction == ".asciz":
+                return label
+            elif _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
+                try:
+                    int(re.findall(ofs, _ppcSIMM)[0])
+                    return label
+                except ValueError:
+                    try:
+                        int(re.findall(ofs, _ppcSIMM)[0], 16)
+                        return label
+                    except ValueError:
+                        pass
 
         for i, char in enumerate(label):
 
-            if char == "#": iscomment = True
-            if char == "(" and iscomment is False: isparen = True
-            if char == ")": isparen = False
+            if char == "#":
+                newstr = "".join(newstr)
+                if newstr.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")):
+                    return newstr[1:] + label[i:]
+                else:
+                    return newstr + label[i:]
+            elif char == "(" and iscomment is False:
+                isparen = True
+            elif char == ")":
+                isparen = False
 
             if char == "." and iscomment is False and i+2 < len(label) and isinstruction == True:
                 if label[i+1] != "s" or label[i+2] != "e":
