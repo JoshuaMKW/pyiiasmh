@@ -37,13 +37,14 @@ import time
 from argparse import ArgumentParser
 
 import ppctools
-from ppctools import get_program_folder, resource_path
+from ppctools import get_program_folder, resource_path, PpcFormatter
 from errors import CodetypeError, UnsupportedOSError
 
-class PyiiAsmhApp(object):
+class PyiiAsmhApp(PpcFormatter):
 
     def __init__(self):
         os.chdir(resource_path())
+        super().__init__()
         
         self.opcodes = None
         self.geckocodes = None
@@ -51,12 +52,6 @@ class PyiiAsmhApp(object):
         self.xor = None
         self.chksum = None
         self.codetype = None
-
-        self.log = logging.getLogger("PyiiASMH")
-        hdlr = logging.FileHandler(os.path.join(get_program_folder("PyiiASMH-3"), "error.log"))
-        formatter = logging.Formatter("\n%(levelname)s (%(asctime)s): %(message)s")
-        hdlr.setFormatter(formatter)
-        self.log.addHandler(hdlr)
 
     def assemble(self, inputfile, outputfile=None, filetype="text"):
         tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
@@ -73,7 +68,7 @@ class PyiiAsmhApp(object):
 
         try:
             toReturn = ""
-            machine_code = ppctools.asm_opcodes(tmpdir, inputfile)
+            machine_code = self.asm_opcodes(tmpdir, inputfile)
         except UnsupportedOSError as e:
             self.log.exception(e)
             toReturn = (f"Your OS '{sys.platform}' is not supported. See 'error.log' for details and also read the README.")
@@ -90,7 +85,7 @@ class PyiiAsmhApp(object):
                 elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
                     return f"Invalid ba/po: {self.bapo}"
 
-            toReturn = ppctools.construct_code(machine_code, self.bapo, self.xor, self.chksum, self.codetype)
+            toReturn = self.construct_code(machine_code, self.bapo, self.xor, self.chksum, self.codetype)
             if outputfile is not None:
                 if filetype == 'text':
                     with open(outputfile, 'w+') as output:
@@ -127,7 +122,7 @@ class PyiiAsmhApp(object):
                 shutil.rmtree(tmpdir)
                 return [f"Error: {str(e)}", (None, None, None, None)]
 
-        rawcodes = ppctools.deconstruct_code(codes, cFooter)
+        rawcodes = self.deconstruct_code(codes, cFooter)
 
         try:
             with open(os.path.join(tmpdir, "code.bin"), "wb") as f:
@@ -141,7 +136,7 @@ class PyiiAsmhApp(object):
 
         try:
             toReturn = ["", (None, None, None, None)]
-            opcodes = ppctools.dsm_geckocodes(tmpdir, outputfile)
+            opcodes = self.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
             toReturn = ((f"Your OS '{sys.platform}' is not supported. " +
@@ -271,7 +266,7 @@ def _ppc_exec():
 
     if args.dest:
         args.dest = os.path.abspath(args.dest)
-        
+
     app = PyiiAsmhApp()
     app.run(parser, args, dumptype)
 
