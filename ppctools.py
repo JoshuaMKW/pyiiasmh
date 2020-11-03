@@ -530,7 +530,6 @@ class PpcFormatter(object):
                         pass
 
         for i, char in enumerate(label):
-
             if char == "#":
                 newstr = "".join(newstr)
                 if newstr.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")):
