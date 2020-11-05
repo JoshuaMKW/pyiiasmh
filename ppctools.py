@@ -130,13 +130,16 @@ class PpcFormatter(object):
 
         if txtfile is None:
             txtfile = os.path.join(tmpdir, "code.txt")
+            
+        tmpbin = os.path.join(tmpdir, "code.bin")
 
-        with open(txtfile, 'r+') as asmfile:
-            asm = "\n".join([self.sanitize_opcodes(line).replace(";", "#", 1) if line.strip().startswith(("b", ".")) or ":" in line else line.strip("\n").replace(";", "#", 1) for line in asmfile if f".include \"__includes.s\"" not in line]) + "\n"
-            asmfile.seek(0)
-            asmfile.write(f".include \"__includes.s\"\n" + asm)
-        
-        tmpfile = os.path.join(tmpdir, "code.bin")
+        with open(txtfile, "r") as asmfile:
+            asm = ".include \"__includes.s\"\n\n" + "\n".join([self.sanitize_opcodes(line) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
+
+            print(asm)
+
+        with open(txtfile, "w") as asmfile:
+            asmfile.write(asm)
 
         output = subprocess.run(f'"{self.eabi["as"]}" -mregnames -mgekko -o "{tmpdir}src1.o" "{txtfile}"', shell=True,
                                 capture_output=True, text=True)
@@ -155,11 +158,11 @@ class PpcFormatter(object):
         output = subprocess.run(f'"{self.eabi["ld"]}" -Ttext 0x80000000 -o "{tmpdir}src2.o" "{tmpdir}src1.o"', shell=True,
                                 capture_output=True, text=True)
 
-        subprocess.run(f'"{self.eabi["objcopy"]}" -O binary "{tmpdir}src2.o" "{tmpfile}"', shell=True)
+        subprocess.run(f'"{self.eabi["objcopy"]}" -O binary "{tmpdir}src2.o" "{tmpbin}"', shell=True)
 
         rawhex = ""
         try:
-            with open(tmpfile, "rb") as f:
+            with open(tmpbin, "rb") as f:
                 try:
                     rawhex = f.read().hex()
                     rawhex = self._format_rawhex(rawhex).upper()
@@ -170,7 +173,7 @@ class PpcFormatter(object):
             with open(txtfile, "r") as asm:
                 assembly = asm.read().split("\n")
 
-            self.log.exception("Failed to open '" + tmpfile + "'")
+            self.log.exception("Failed to open '" + tmpbin + "'")
             resSegments = output.stderr.split(r"\r\n")
             for segment in resSegments:
                 try:
@@ -496,84 +499,109 @@ class PpcFormatter(object):
             return (codes[18:-9], bapo, xor, chksum, codetype)
 
     @staticmethod
-    def sanitize_opcodes(label: str) -> str:
-        label = label.rstrip()
-        ppcPattern = re.compile(r"(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([\. \t\-\w,()]+|)")
-        sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
-        whitespace = " \n\t\r"
-        iscomment = False
-        isparen = False
-        isinstruction = True
+    def _parse_ppc(line: str) -> tuple:
+        """ Returns a tuple containing (instr., simm, comment) """
 
-        newstr = []
+        _line = line.strip()
+
+        _ppcInstruction = None
+        _ppcSIMM = None
+        _ppcComment = None
+
+        commentIndex = 0
+
+        if _line.startswith(("#", ";")):
+            return None, None, _line
+        elif _line == "":
+            return None, None, None
+
         try:
-            _ppcInstruction, _ppcSIMM = re.findall(ppcPattern, label)[0]
-        except IndexError:
-            pass
+            commentIndex = _line.index("#")
+            _ppcComment = _line[commentIndex:]
+        except ValueError:
+            try:
+                commentIndex = _line.index(";")
+                _ppcComment = _line[commentIndex:]
+            except ValueError:
+                _ppcComment = ""
+
+        if commentIndex > 0:
+            if len(_line[:commentIndex].split(" ", maxsplit=1)) == 2:
+                _ppcInstruction, _ppcSIMM = _line[:commentIndex].split(" ", maxsplit=1)
+            elif len(_line[:commentIndex].split(" ", maxsplit=1)) == 1:
+                _ppcInstruction = _line[:commentIndex].strip()
         else:
-            if "," in _ppcSIMM:
-                ofs = re.compile(r"(?<=[\+\-\s]).+")
-            else:
-                ofs = re.compile(r".+")
+            if len(_line.split(" ", maxsplit=1)) == 2:
+                _ppcInstruction, _ppcSIMM = _line.split(" ", maxsplit=1)
+            elif len(_line.split(" ", maxsplit=1)) == 1:
+                _ppcInstruction = _line.strip()
 
-            if _ppcInstruction == ".asciz":
-                return label
-            elif _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
-                try:
-                    int(re.findall(ofs, _ppcSIMM)[0])
-                    return label
-                except ValueError:
-                    try:
-                        int(re.findall(ofs, _ppcSIMM)[0], 16)
-                        return label
-                    except ValueError:
-                        pass
+        return _ppcInstruction, _ppcSIMM, _ppcComment
 
-        for i, char in enumerate(label):
-            if char == "#":
-                newstr = "".join(newstr)
-                if newstr.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")):
-                    return newstr[1:] + label[i:]
-                else:
-                    return newstr + label[i:]
-            elif char == "(" and iscomment is False:
-                isparen = True
-            elif char == ")":
-                isparen = False
+    @staticmethod
+    def sanitize_opcodes(opcode: str) -> str:
+        opcode = opcode.rstrip()
+        _ppcInstruction, _ppcSIMM, _ppcComment = PpcFormatter._parse_ppc(opcode)
 
-            if char == "." and iscomment is False and i+2 < len(label) and isinstruction == True:
-                if label[i+1] != "s" or label[i+2] != "e":
-                    return label
+        registerGex = re.compile(r"[crf]+\d{2}|[crf]+\d{1}")
+        sanitizeGex = re.compile(r"[^\w\n@.\"';#]")
+        #sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
+        #whitespace = " \n\t\r"
 
-            if i > 0 and char in whitespace and label[i-1] not in whitespace:
-                isinstruction = False
+        isParen = False
 
-            if char not in sanitize_list and char not in sanitize_list.upper() and not iscomment:
-                if isparen and char in ", ":
-                    newstr.append("_")
-                    continue
+        newSIMM = ""
 
-                if isinstruction and char in "-+":
-                    newstr.append(char)
-                    continue
-
-                if i+1 < len(label):
-                    if char in ":," and label[i+1] in whitespace:
-                        newstr.append(char)
-                    elif char in whitespace:
-                        newstr.append(char)
-                    else:
-                        newstr.append("_")
-                else:
-                    if char in whitespace or char in ":,":
-                        newstr.append(char)
-                    else:
-                        newstr.append("_")
-            else:
-                newstr.append(char)
-
-        newstr = "".join(newstr)
-        if newstr.startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")):
-            return newstr[1:]
+        if _ppcInstruction is None:
+            return opcode.replace(";", "#", 1)
         else:
-            return newstr
+            if _ppcInstruction.startswith(("b", ".")) and _ppcSIMM is not None:
+                if _ppcInstruction != ".else" and "if" not in _ppcInstruction:
+
+                    fmtArray = []
+
+                    for section in re.split(r"[,\s]+", _ppcSIMM):
+                        section = section.strip()
+                        if section == "":
+                            continue
+
+                        isRegister = True
+
+                        if section in ("==", "||", "&&"):
+                            fmtArray.append([section, isParen])
+                            continue
+
+                        try:
+                            re.findall(registerGex, section)[0]
+                        except IndexError:
+                            isRegister = False
+
+                        if not isRegister:
+                            if not section.startswith("("):
+                                closingParen = section.find(")")
+                                section = re.sub(sanitizeGex, "_", section)
+                                if closingParen > -1 and isParen is True:
+                                    section = section[:closingParen] + ")" + section[closingParen + 1:]
+                                    isParen = False
+                            else:
+                                section = "(" + re.sub(sanitizeGex, "_", section)[1:]
+                                isParen = True
+                        
+                        fmtArray.append([section, isParen])
+
+
+                    for i, section in enumerate(fmtArray):
+                        if section[1] is True or i < 1:
+                            newSIMM += " " + section[0]
+                        else:
+                            newSIMM += ", " + section[0]
+                    
+
+                    return (_ppcInstruction + newSIMM).replace(";", "#", 1)
+            elif _ppcInstruction.endswith(":"):
+                if _ppcComment is not None:
+                    return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ": " + _ppcComment
+                else:
+                    return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ":"
+
+            return opcode.replace(";", "#", 1)

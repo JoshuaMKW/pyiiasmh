@@ -15,22 +15,22 @@
 #
 # An example usage is: __set_count_register r0 NONE
 
-.set AMERICA, E
+.set AMERICA, 'E'
 # The American region specifier, used in disc IDs and in region flexible assembly
 
-.set EUROPE, P
+.set EUROPE, 'P'
 # The European region specifier, used in disc IDs and in region flexible assembly
 
-.set JAPAN, J
+.set JAPAN, 'J'
 # The Japanese region specifier, used in disc IDs and in region flexible assembly
 
-.set KOREA, K
+.set KOREA, 'K'
 # The Korean region specifier, used in disc IDs and in region flexible assembly
 
-.set CHINA, C
+.set CHINA, 'C'
 # The Chinese region specifier, used in region flexible assembly
 
-.set TAIWAN, T
+.set TAIWAN, 'T'
 # The Taiwanese region specifier, used in disc IDs and in region flexible assembly
 
 .macro __set register value
