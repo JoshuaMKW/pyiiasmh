@@ -136,8 +136,6 @@ class PpcFormatter(object):
         with open(txtfile, "r") as asmfile:
             asm = ".include \"__includes.s\"\n\n" + "\n".join([self.sanitize_opcodes(line) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
 
-            print(asm)
-
         with open(txtfile, "w") as asmfile:
             asmfile.write(asm)
 
@@ -234,8 +232,8 @@ class PpcFormatter(object):
         ppcPattern = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
         branchLabel = ".loc_0x{:X}:"
         unsignedInstructions = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
-        nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
-                              "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
+        '''nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
+                              "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")'''
         pairedSingleLoadStores = ("psq_l", "psq_lu", "psq_st", "psq_stu")
 
         for _ppcOffset, _ppcRaw, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, opcodes):
