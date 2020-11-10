@@ -16,7 +16,7 @@ options = {
 }
   
 setup(name = "PyiiASMH 3", 
-      version = "4.1.0", 
+      version = "4.1.5", 
       description = "A cross platform gecko code compiler for PowerPC assembly", 
       executables = [Executable("pyiiasmh.py", icon="PyiiASMH.ico")],
       author = "JoshuaMK",

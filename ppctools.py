@@ -136,6 +136,8 @@ class PpcFormatter(object):
         with open(txtfile, "r") as asmfile:
             asm = ".include \"__includes.s\"\n\n" + "\n".join([self.sanitize_opcodes(line) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
 
+        #print(asm)
+
         with open(txtfile, "w") as asmfile:
             asmfile.write(asm)
 
@@ -513,26 +515,31 @@ class PpcFormatter(object):
         elif _line == "":
             return None, None, None
 
-        try:
-            commentIndex = _line.index("#")
-            _ppcComment = _line[commentIndex:]
-        except ValueError:
-            try:
-                commentIndex = _line.index(";")
-                _ppcComment = _line[commentIndex:]
-            except ValueError:
-                _ppcComment = ""
+        _hashtagIndex = _line.find("#")
+        _semicolonIndex = _line.find(";")
 
-        if commentIndex > 0:
-            if len(_line[:commentIndex].split(" ", maxsplit=1)) == 2:
-                _ppcInstruction, _ppcSIMM = _line[:commentIndex].split(" ", maxsplit=1)
-            elif len(_line[:commentIndex].split(" ", maxsplit=1)) == 1:
-                _ppcInstruction = _line[:commentIndex].strip()
+        if _hashtagIndex >= 0 or _semicolonIndex >= 0:
+            commentIndex = _hashtagIndex if _hashtagIndex > _semicolonIndex else _semicolonIndex
+            _ppcComment = _line[commentIndex:]
         else:
-            if len(_line.split(" ", maxsplit=1)) == 2:
-                _ppcInstruction, _ppcSIMM = _line.split(" ", maxsplit=1)
-            elif len(_line.split(" ", maxsplit=1)) == 1:
-                _ppcInstruction = _line.strip()
+            commentIndex = -1
+
+        if commentIndex >= 0:
+            if _line.find(":") >= 0 and _line.find(":") < commentIndex:
+                return _line[:commentIndex].strip(), None, _ppcComment
+            else:
+                if len(_line[:commentIndex].split(" ", maxsplit=1)) == 2:
+                    _ppcInstruction, _ppcSIMM = _line[:commentIndex].split(" ", maxsplit=1)
+                elif len(_line[:commentIndex].split(" ", maxsplit=1)) == 1:
+                    _ppcInstruction = _line[:commentIndex].strip()
+        else:
+            if _line.find(":") >= 0:
+                return _line[:commentIndex].strip(), None, None
+            else:
+                if len(_line.split(" ", maxsplit=1)) == 2:
+                    _ppcInstruction, _ppcSIMM = _line.split(" ", maxsplit=1)
+                elif len(_line.split(" ", maxsplit=1)) == 1:
+                    _ppcInstruction = _line.strip()
 
         return _ppcInstruction, _ppcSIMM, _ppcComment
 
@@ -553,6 +560,7 @@ class PpcFormatter(object):
         if _ppcInstruction is None:
             return opcode.replace(";", "#", 1)
         else:
+            print(_ppcInstruction, _ppcInstruction.startswith(("b", ".")), _ppcSIMM is not None)
             if _ppcInstruction.startswith(("b", ".")) and _ppcSIMM is not None:
                 if _ppcInstruction != ".else" and "if" not in _ppcInstruction:
 
@@ -597,6 +605,7 @@ class PpcFormatter(object):
 
                     return (_ppcInstruction + newSIMM).replace(";", "#", 1)
             elif _ppcInstruction.endswith(":"):
+                print(_ppcInstruction, re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ":")
                 if _ppcComment is not None:
                     return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ": " + _ppcComment
                 else:
