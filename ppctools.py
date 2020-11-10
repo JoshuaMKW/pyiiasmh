@@ -136,8 +136,6 @@ class PpcFormatter(object):
         with open(txtfile, "r") as asmfile:
             asm = ".include \"__includes.s\"\n\n" + "\n".join([self.sanitize_opcodes(line) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
 
-        #print(asm)
-
         with open(txtfile, "w") as asmfile:
             asmfile.write(asm)
 
@@ -550,8 +548,6 @@ class PpcFormatter(object):
 
         registerGex = re.compile(r"[crf]+\d{2}|[crf]+\d{1}")
         sanitizeGex = re.compile(r"[^\w\n@.\"';#]")
-        #sanitize_list = "abcdefghijklmnopqrstuvwxyz1234567890.#"
-        #whitespace = " \n\t\r"
 
         isParen = False
 
@@ -560,7 +556,6 @@ class PpcFormatter(object):
         if _ppcInstruction is None:
             return opcode.replace(";", "#", 1)
         else:
-            print(_ppcInstruction, _ppcInstruction.startswith(("b", ".")), _ppcSIMM is not None)
             if _ppcInstruction.startswith(("b", ".")) and _ppcSIMM is not None:
                 if _ppcInstruction != ".else" and "if" not in _ppcInstruction:
 
@@ -605,7 +600,6 @@ class PpcFormatter(object):
 
                     return (_ppcInstruction + newSIMM).replace(";", "#", 1)
             elif _ppcInstruction.endswith(":"):
-                print(_ppcInstruction, re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ":")
                 if _ppcComment is not None:
                     return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ": " + _ppcComment
                 else:
