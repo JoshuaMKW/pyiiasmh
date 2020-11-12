@@ -15,6 +15,16 @@
 #
 # An example usage is: __set_count_register r0 NONE
 
+.set THIS, r3
+# Use to specify the instance of a class who's function was called
+#
+# Value: r3
+
+.set SELF, r3
+# Use to specify the instance of a class who's function was called
+#
+# Value: r3
+
 .set AMERICA, 'E'
 # The American region specifier, used in disc IDs and in region flexible assembly
 
@@ -64,7 +74,12 @@
     .endif
 
     stwu sp, (((\size + 15) & -16) * -1) (sp)
-    stmw \floor_gpr, 0x8 (sp)
+
+    .if \floor_gpr == 31 || \floor_gpr == r31
+        stw \floor_gpr, 0x8 (sp)
+    .else
+        stmw \floor_gpr, 0x8 (sp)
+    .endif
 .endm
 
 .macro __pop_stack floor_gpr size restore_lr
@@ -76,7 +91,12 @@
         .error "Negative and null stack sizes are invalid"
     .endif
     
-    lmw \floor_gpr, 0x8 (sp)
+    .if \floor_gpr == 31 || \floor_gpr == r31
+        lwz \floor_gpr, 0x8 (sp)
+    .else
+        lmw \floor_gpr, 0x8 (sp)
+    .endif
+
     addi sp, sp, ((\size + 15) & -16)
 
     .if \restore_lr == TRUE

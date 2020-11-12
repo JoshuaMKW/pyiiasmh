@@ -497,6 +497,26 @@ class PpcFormatter(object):
             return (codes[18:-9], bapo, xor, chksum, codetype)
 
     @staticmethod
+    def _first_instance_of(char: str, string: str, _start: int = -1, _end: int = -1) -> list:
+        """ Return the character and first occuring index of in a list """
+        if _start == -1: _start = 0
+        if _end == -1: _end = len(string)
+
+        if isinstance(char, str):
+            return char, string.find(char, _start, _end)
+        else:
+            char = list(char) #ensure mutable
+            returnchar = [ "", -1 ]
+            for _char in char:
+                if returnchar[0] == "" and string.find(_char, _start, _end) > -1:
+                    returnchar = [_char, string.find(_char, _start, _end)]
+                else:
+                    if string.find(_char, _start, _end) < returnchar[1] and string.find(_char, _start, _end) > -1:
+                        returnchar = [_char, string.find(_char, _start, _end)]
+            return returnchar
+
+
+    @staticmethod
     def _parse_ppc(line: str) -> tuple:
         """ Returns a tuple containing (instr., simm, comment) """
 
@@ -506,21 +526,14 @@ class PpcFormatter(object):
         _ppcSIMM = None
         _ppcComment = None
 
-        commentIndex = 0
-
         if _line.startswith(("#", ";")):
             return None, None, _line
         elif _line == "":
             return None, None, None
 
-        _hashtagIndex = _line.find("#")
-        _semicolonIndex = _line.find(";")
-
-        if _hashtagIndex >= 0 or _semicolonIndex >= 0:
-            commentIndex = _hashtagIndex if _hashtagIndex > _semicolonIndex else _semicolonIndex
+        commentIndex = PpcFormatter._first_instance_of(("#", ";"), _line)[1]
+        if commentIndex >= 0:
             _ppcComment = _line[commentIndex:]
-        else:
-            commentIndex = -1
 
         if commentIndex >= 0:
             if _line.find(":") >= 0 and _line.find(":") < commentIndex:
@@ -560,6 +573,11 @@ class PpcFormatter(object):
                 if _ppcInstruction != ".else" and "if" not in _ppcInstruction:
 
                     fmtArray = []
+                    if _ppcSIMM.find("(") >= 0:
+                        if _ppcSIMM[_ppcSIMM.find("(")-1] not in "+-*/^|& \t":
+                            print(_ppcSIMM, "Successfully found label")
+                            return opcode.replace(";", "#", 1)
+                            #TODO: Separate label from any mathmatical instructions
 
                     for section in re.split(r"[,\s]+", _ppcSIMM):
                         section = section.strip()
@@ -580,6 +598,8 @@ class PpcFormatter(object):
                         if not isRegister:
                             if not section.startswith("("):
                                 closingParen = section.find(")")
+                                splitIndex = PpcFormatter._first_instance_of(("+", "-", "/", "*", "^", "|", "&"), section.strip("(").strip(")"))[1]
+                                
                                 section = re.sub(sanitizeGex, "_", section)
                                 if closingParen > -1 and isParen is True:
                                     section = section[:closingParen] + ")" + section[closingParen + 1:]
