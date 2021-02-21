@@ -161,8 +161,8 @@ class PrefsUi(QtWidgets.QDialog):
 class BuiltinsDocUI(QtWidgets.QDialog):
     def __init__(self):
         super().__init__(None, QtCore.Qt.WindowSystemMenuHint | QtCore.Qt.WindowTitleHint | QtCore.Qt.WindowCloseButtonHint)
-
-        self.init_docs()
+        self.docs = []
+        
         self.setupUi()
 
     def setupUi(self):

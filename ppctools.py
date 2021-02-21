@@ -24,42 +24,50 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import logging
 import os
 import re
-import sys
-import logging
 import subprocess
-
+import sys
+from pathlib import Path
 from struct import calcsize
+from typing import Union
+
 from errors import CodetypeError, UnsupportedOSError
+
 
 def enclose_string(string: str) -> str:
     return "-"*(len(string) + 2) + "\n|" + string + "|\n" + "-"*(len(string) + 2)
 
-def resource_path(relative_path: str = "") -> str:
+def resource_path(relative_path: str = "") -> Path:
     """ Get absolute path to resource, works for dev and for cx_freeze """
-    if getattr(sys, "frozen", False):
-        # The application is frozen
-        base_path = os.path.dirname(sys.executable)
+    if hasattr(sys, "_MEIPASS"):
+        return getattr(sys, "_MEIPASS", Path(__file__).parent) / relative_path
     else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        
-    return os.path.join(base_path, relative_path)
+        if getattr(sys, "frozen", False):
+            # The application is frozen
+            base_path = Path(sys.executable).parent
+        else:
+            base_path = Path(__file__).parent
+            
+        return base_path / relative_path
 
-def get_program_folder(folder: str = "") -> str:
+def get_program_folder(folder: str = "") -> Path:
     """ Get path to appdata """
+    from os import getenv
+
     if sys.platform == "win32":
-        datapath = os.path.join(os.getenv("APPDATA"), folder)
+        datapath = Path(getenv("APPDATA")) / folder
     elif sys.platform == "darwin":
         if folder:
             folder = "." + folder
-        datapath = os.path.join(os.path.expanduser("~"), "Library", "Application Support", folder)
-    elif sys.platform == "linux":
+        datapath = Path("~/Library/Application Support").expanduser() / folder
+    elif "linux" in sys.platform:
         if folder:
             folder = "." + folder
-        datapath = os.path.join(os.getenv("HOME"), folder)
+        datapath = Path.home() / folder
     else:
-        raise UnsupportedOSError(f"{sys.platform} OS is unsupported")
+        raise NotImplementedError(f"{sys.platform} OS is unsupported")
     return datapath
 
 class PpcFormatter(object):
@@ -80,74 +88,36 @@ class PpcFormatter(object):
 
         self._init_lib()
 
-    def _init_lib(self):
-        eabi = {}
-        vdappc = ""
-
-        # Pathnames for powerpc-eabi executables
-        for i in ("as", "ld", "objcopy"):
-            eabi[i] = resource_path(os.path.join("lib/", sys.platform))
-
-            if sys.platform == "linux":
-                if calcsize("P") * 8 == 64:
-                    eabi[i] += "_x86_64"
-                else:
-                    eabi[i] += "_i686"
-
-            eabi[i] += "/powerpc-eabi-" + i
-
-            if sys.platform == "win32":
-                eabi[i] += ".exe"
-
-            eabi[i] = os.path.normpath(eabi[i])
-
-        # Pathname for vdappc executable
-        vdappc = resource_path(os.path.join("lib/", sys.platform))
-
-        if sys.platform == "linux":
-            if calcsize("P") * 8 == 64:
-                vdappc += "_x86_64"
-            else:
-                vdappc += "_i686"
-
-        vdappc += "/vdappc"
-
-        if sys.platform == "win32":
-            vdappc += ".exe"
-
-        vdappc = os.path.normpath(vdappc)
-
-        self.eabi = eabi
-        self.vdappc = vdappc
-
-    def asm_opcodes(self, tmpdir: str, txtfile: str=None) -> str:
+    def asm_opcodes(self, tmpdir: Union[str, Path], txtfile: Union[str, Path] = None) -> str:
         if sys.platform not in PpcFormatter.AVAILABLE_PLATFORMS:
             raise UnsupportedOSError(f"{sys.platform} OS is not supported")
         
-        for i in ("as", "ld", "objcopy"):
-            if not os.path.isfile(self.eabi[i]):
-                raise FileNotFoundError(self.eabi[i] + " not found")
+        for x in ("as", "ld", "objcopy"):
+            if not self.eabi[x].is_file():
+                raise FileNotFoundError(f"{self.eabi[x]} not found")
 
         if txtfile is None:
-            txtfile = os.path.join(tmpdir, "code.txt")
+            txtfile = Path(tmpdir, "code.txt")
+        elif isinstance(txtfile, str):
+            txtfile = Path(txtfile)
             
-        tmpbin = os.path.join(tmpdir, "code.bin")
+        tmpbin = Path(tmpdir, "code.bin")
 
-        with open(txtfile, "r") as asmfile:
-            asm = ".include \"__includes.s\"\n\n" + "\n".join([self.sanitize_opcodes(line) for line in asmfile if ".include \"__includes.s\"" not in line]) + "\n"
+        with txtfile.open("r") as f:
+            _asm = ".include \"__includes.s\"\n\n" + "\n".join([l.replace(";", "#", 1) for l in f if ".include \"__includes.s\"" not in l]) + "\n"
 
-        with open(txtfile, "w") as asmfile:
-            asmfile.write(asm)
+        with txtfile.open("w") as f:
+            f.write(_asm)
 
         output = subprocess.run(f'"{self.eabi["as"]}" -mregnames -mgekko -o "{tmpdir}src1.o" "{txtfile}"', shell=True,
                                 capture_output=True, text=True)
         if output.stderr:
-            errormsg = output.stderr.replace(txtfile + ":", "^")[23:]
+            errormsg = output.stderr.replace(f"{txtfile}:", "^")[23:]
 
-            with open(txtfile, "r") as asm:
-                assembly = asm.read().split("\n")
+            with txtfile.open("r") as f:
+                assembly = f.read().split("\n")
 
-            for i, index in enumerate(re.findall(r"(?<=\^)\d+", errormsg)):
+            for index in re.findall(r"(?<=\^)\d+", errormsg):
                 instruction = assembly[int(index, 10) - 1].lstrip()
                 errormsg = re.sub(r"(?<! )\^", enclose_string(instruction) + "\n ^", errormsg + "\n\n", count=1)
 
@@ -160,7 +130,7 @@ class PpcFormatter(object):
 
         rawhex = ""
         try:
-            with open(tmpbin, "rb") as f:
+            with tmpbin.open("rb") as f:
                 try:
                     rawhex = f.read().hex()
                     rawhex = self._format_rawhex(rawhex).upper()
@@ -168,10 +138,10 @@ class PpcFormatter(object):
                     self.log.exception(e)
                     rawhex = "The compile was corrupt,\nplease try again.\n"
         except IOError:
-            with open(txtfile, "r") as asm:
-                assembly = asm.read().split("\n")
+            with txtfile.open("r") as f:
+                assembly = f.read().split("\n")
 
-            self.log.exception("Failed to open '" + tmpbin + "'")
+            self.log.exception(f"Failed to open '{tmpbin}'")
             resSegments = output.stderr.split(r"\r\n")
             for segment in resSegments:
                 try:
@@ -185,14 +155,14 @@ class PpcFormatter(object):
         return rawhex
 
 
-    def dsm_geckocodes(self, tmpdir: str, txtfile: str=None) -> str:
+    def dsm_geckocodes(self, tmpdir: Union[str, Path], txtfile: Union[str, Path] = None) -> str:
         if sys.platform not in PpcFormatter.AVAILABLE_PLATFORMS:
             raise UnsupportedOSError(f"{sys.platform} OS is not supported")
 
-        if not os.path.isfile(self.vdappc):
+        if not self.vdappc.is_file():
             raise FileNotFoundError(self.vdappc + " not found")
 
-        tmpfile = os.path.join(tmpdir, "code.bin")
+        tmpfile = Path(tmpdir, "code.bin")
 
         output = subprocess.run(f'"{self.vdappc}" "{tmpfile}" 0', shell=True, capture_output=True, text=True)
 
@@ -201,14 +171,44 @@ class PpcFormatter(object):
 
         opcodes = self._format_opcodes(output.stdout)
 
+        if isinstance(txtfile, str):
+            txtfile = Path(txtfile)
+
         if txtfile is not None:
             try:
-                with open(txtfile, "w") as f:
+                with txtfile.open("w") as f:
                     f.write(opcodes + "\n")
             except IOError:
-                self.log.exception("Failed to open '" + txtfile + "'")
+                self.log.exception(f"Failed to open '{txtfile}'")
 
         return opcodes
+
+    def _init_lib(self):
+        eabi = {}
+
+        # Pathnames for powerpc-eabi executables
+        for x in ("as", "ld", "objcopy"):
+            eabi[x] = self._create_lib_path(f"powerpc-eabi-{x}")
+
+        self.eabi = eabi
+        self.vdappc = self._create_lib_path("vdappc")
+
+    @staticmethod
+    def _create_lib_path(name: str) -> Path:
+        _libPath = str(resource_path(f"lib/{sys.platform}"))
+
+        if sys.platform == "linux":
+            if calcsize("P") * 8 == 64:
+                _libPath += "_x86_64"
+            else:
+                _libPath += "_i686"
+
+        _libPath += f"/{name}"
+
+        if sys.platform == "win32":
+            _libPath += ".exe"
+
+        return Path(_libPath).resolve()
 
     @staticmethod
     def _format_rawhex(rawhex: str) -> str:
@@ -226,59 +226,60 @@ class PpcFormatter(object):
 
     @staticmethod
     def _format_opcodes(opcodes: str) -> str:
-        # Format the output from vdappc
-        textOutput = []
-        labels = []
-        ppcPattern = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
-        branchLabel = ".loc_0x{:X}:"
-        unsignedInstructions = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
-        '''nonhexInstructions = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
-                              "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")'''
-        pairedSingleLoadStores = ("psq_l", "psq_lu", "psq_st", "psq_stu")
+        BRANCHLABEL = ".loc_0x{:X}:"
+        #NONHEXINSTRUCTIONS = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
+        #                      "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
+        PPCPATTERN = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
+        PSLOADSTORES = ("psq_l", "psq_lu", "psq_st", "psq_stu")
+        UNSIGNEDINSTRUCTIONS = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
 
-        for _ppcOffset, _ppcRaw, _ppcInstruction, _ppcSIMM in re.findall(ppcPattern, opcodes):
+        # Format the output from vdappc
+        _textOutput = []
+        _labels = []
+
+        for PPCOFFSET, PPCRAW, PPCINSTRUCTION, PPCSIMM in re.findall(PPCPATTERN, opcodes):
             #Branch label stuff
-            if _ppcInstruction.startswith("b") and "r" not in _ppcInstruction:
-                if _ppcInstruction == "b" or _ppcInstruction == "bl":
-                    SIMM = PpcFormatter._sign_extendb(int(_ppcRaw[1:], 16) & 0x3FFFFFC)
+            if PPCINSTRUCTION.startswith("b") and "r" not in PPCINSTRUCTION:
+                if PPCINSTRUCTION == "b" or PPCINSTRUCTION == "bl":
+                    SIMM = PpcFormatter._sign_extendb(int(PPCRAW[1:], 16) & 0x3FFFFFC)
                 else:
-                    SIMM = PpcFormatter._sign_extend16(int(_ppcRaw[4:], 16) & 0xFFFC)
+                    SIMM = PpcFormatter._sign_extend16(int(PPCRAW[4:], 16) & 0xFFFC)
 
                 newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
-                offset = int(_ppcOffset, 16) + SIMM
-                bInRange = (offset >> 2) > 0 and offset <= len(re.findall(ppcPattern, opcodes)) << 2
-                label = branchLabel.format(offset & 0xFFFFFFFC)
+                offset = int(PPCOFFSET, 16) + SIMM
+                bInRange = (offset >> 2) > 0 and offset <= len(re.findall(PPCPATTERN, opcodes)) << 2
+                label = BRANCHLABEL.format(offset & 0xFFFFFFFC)
 
-                if label not in labels and bInRange is True:
-                    labels.append(label)
+                if label not in _labels and bInRange is True:
+                    _labels.append(label)
 
                 if bInRange is True or offset == 0:
-                    if "," in _ppcSIMM:
-                        textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), _ppcSIMM))
+                    if "," in PPCSIMM:
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), PPCSIMM))
                     else:
-                        textOutput.append("  " + _ppcInstruction.ljust(10, " ") + label[:-1].rstrip())
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + label[:-1].rstrip())
                 else:
-                    if "," in _ppcSIMM:
-                        textOutput.append("  " + _ppcInstruction.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), _ppcSIMM))
+                    if "," in PPCSIMM:
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), PPCSIMM))
                     else:
-                        textOutput.append("  " + _ppcInstruction.ljust(10, " ") + newSIMM.rstrip())
-            elif _ppcInstruction[:1] in ("s", "l") and _ppcInstruction.endswith("u") and _ppcSIMM[-4:] == "(r0)":
-                textOutput.append("  " + ".long".ljust(10, " ") + "0x" + _ppcRaw)
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + newSIMM.rstrip())
+            elif PPCINSTRUCTION[:1] in ("s", "l") and PPCINSTRUCTION.endswith("u") and PPCSIMM[-4:] == "(r0)":
+                _textOutput.append("  " + ".long".ljust(10, " ") + "0x" + PPCRAW)
             else:
                 #Set up cleaner format
-                values = _ppcSIMM
-                if _ppcSIMM.count(",") < 4 or _ppcInstruction in pairedSingleLoadStores:
+                values = PPCSIMM
+                if PPCSIMM.count(",") < 4 or PPCINSTRUCTION in PSLOADSTORES:
                     _currentfmtpos = 0
-                    for matchObj in re.finditer(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", _ppcSIMM):
+                    for matchObj in re.finditer(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", PPCSIMM):
                         decimal = matchObj.group()
                         if decimal != "0":
-                            if "(" in decimal and _ppcInstruction not in unsignedInstructions:
-                                if _ppcInstruction in pairedSingleLoadStores:
+                            if "(" in decimal and PPCINSTRUCTION not in UNSIGNEDINSTRUCTIONS:
+                                if PPCINSTRUCTION in PSLOADSTORES:
                                     decimal = "0x{:X}(".format(PpcFormatter._sign_extendps(int(decimal[:-1], 10)))
                                 else:
                                     decimal = "0x{:X}(".format(int(decimal[:-1], 10))
                                 decimal = decimal.replace("0x-", "-0x")
-                            elif _ppcInstruction not in unsignedInstructions:
+                            elif PPCINSTRUCTION not in UNSIGNEDINSTRUCTIONS:
                                 decimal = "0x{:X}".format(int(decimal, 10))
                                 decimal = decimal.replace("0x-", "-0x")
                             else:
@@ -290,29 +291,29 @@ class PpcFormatter(object):
                         values = values[:_currentfmtpos] + re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values[_currentfmtpos:], count=1)
                         _currentfmtpos = matchObj.end() + (len(decimal) - (matchObj.end() - matchObj.start()))
 
-                    if _ppcInstruction not in pairedSingleLoadStores:
+                    if PPCINSTRUCTION not in PSLOADSTORES:
                         values = values.replace(",", ", ")
 
-                elif _ppcInstruction == "crclr" or _ppcInstruction == "crse":
+                elif PPCINSTRUCTION == "crclr" or PPCINSTRUCTION == "crse":
                     values = re.sub(r",\d", "", values)
 
-                textOutput.append("  " + _ppcInstruction.replace(".word", ".long").ljust(10, " ") + values.rstrip())
+                _textOutput.append("  " + PPCINSTRUCTION.replace(".word", ".long").ljust(10, " ") + values.rstrip())
 
-        #Set up labels in text output
-        textOutput.insert(0, branchLabel.format(0))
-        for i, label in enumerate(sorted(sorted(labels, key=str), key=len), start=1):
+        #Set up _labels in text output
+        _textOutput.insert(0, BRANCHLABEL.format(0))
+        for i, label in enumerate(sorted(sorted(_labels, key=str), key=len), start=1):
             labelOffset = re.findall("(?:(-0x|0x))([a-fA-F0-9]+)", label)
             labelIndex = (int(labelOffset[0][1], 16) >> 2) + i
 
-            if labelIndex < len(textOutput) and labelIndex >= 0:
-                textOutput.insert(labelIndex, "\n" + label)
+            if labelIndex < len(_textOutput) and labelIndex >= 0:
+                _textOutput.insert(labelIndex, "\n" + label)
             elif labelIndex >= 0:
-                textOutput.append("\n" + label)
+                _textOutput.append("\n" + label)
             else:
-                textOutput.insert(0, "\n" + label)
+                _textOutput.insert(0, "\n" + label)
 
         # Return the disassembled opcodes
-        return "\n".join(textOutput)
+        return "\n".join(_textOutput)
 
     @staticmethod
     def _sign_extend16(value: int) -> int:
@@ -411,14 +412,14 @@ class PpcFormatter(object):
                     else:
                         pre += "4"
 
-                    newhex = ''
+                    newhex = ""
                     address = int(bapo, 16) & 0xFFFFFF
 
-                    for opcodeline in rawhex.split('\n'):
-                        for opcode in opcodeline.split(' '):
-                            if opcode == '':
+                    for opcodeline in rawhex.split("\n"):
+                        for opcode in opcodeline.split(" "):
+                            if opcode == "":
                                 break
-                            newhex += pre + '{:06X} '.format(address) + PpcFormatter._align_header(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
+                            newhex += pre + "{:06X} ".format(address) + PpcFormatter._align_header(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
                             address += 4
 
                     return newhex
@@ -442,7 +443,7 @@ class PpcFormatter(object):
 
                         pre += bapo[2:] + " " + "{:02X}".format(int(chksum, 16)) + "{:04X}".format(int(xor, 16)) + numlines + "\n"
                     else:
-                        raise CodetypeError("Number of lines (" + numlines + ") must be lower than 0xFF")
+                        raise CodetypeError(f"Number of lines ({numlines}) must be lower than 0xFF")
             return pre + PpcFormatter._align_header(rawhex[:-1], post, ctype, numbytes)
         else:
             return rawhex
@@ -522,8 +523,8 @@ class PpcFormatter(object):
 
         _line = line.strip()
 
-        _ppcInstruction = None
-        _ppcSIMM = None
+        PPCINSTRUCTION = None
+        PPCSIMM = None
         _ppcComment = None
 
         if _line.startswith(("#", ";")):
@@ -540,24 +541,24 @@ class PpcFormatter(object):
                 return _line[:commentIndex].strip(), None, _ppcComment
             else:
                 if len(_line[:commentIndex].split(" ", maxsplit=1)) == 2:
-                    _ppcInstruction, _ppcSIMM = _line[:commentIndex].split(" ", maxsplit=1)
+                    PPCINSTRUCTION, PPCSIMM = _line[:commentIndex].split(" ", maxsplit=1)
                 elif len(_line[:commentIndex].split(" ", maxsplit=1)) == 1:
-                    _ppcInstruction = _line[:commentIndex].strip()
+                    PPCINSTRUCTION = _line[:commentIndex].strip()
         else:
             if _line.find(":") >= 0:
                 return _line[:commentIndex].strip(), None, None
             else:
                 if len(_line.split(" ", maxsplit=1)) == 2:
-                    _ppcInstruction, _ppcSIMM = _line.split(" ", maxsplit=1)
+                    PPCINSTRUCTION, PPCSIMM = _line.split(" ", maxsplit=1)
                 elif len(_line.split(" ", maxsplit=1)) == 1:
-                    _ppcInstruction = _line.strip()
+                    PPCINSTRUCTION = _line.strip()
 
-        return _ppcInstruction, _ppcSIMM, _ppcComment
+        return PPCINSTRUCTION, PPCSIMM, _ppcComment
 
     @staticmethod
     def sanitize_opcodes(opcode: str) -> str:
         opcode = opcode.rstrip()
-        _ppcInstruction, _ppcSIMM, _ppcComment = PpcFormatter._parse_ppc(opcode)
+        PPCINSTRUCTION, PPCSIMM, _ppcComment = PpcFormatter._parse_ppc(opcode)
 
         registerGex = re.compile(r"[crf]+\d{2}|[crf]+\d{1}")
         sanitizeGex = re.compile(r"[^\w\n@.\"';#]")
@@ -566,20 +567,20 @@ class PpcFormatter(object):
 
         newSIMM = ""
 
-        if _ppcInstruction is None:
+        if PPCINSTRUCTION is None:
             return opcode.replace(";", "#", 1)
         else:
-            if _ppcInstruction.startswith(("b", ".")) and _ppcSIMM is not None:
-                if _ppcInstruction != ".else" and "if" not in _ppcInstruction:
+            if PPCINSTRUCTION.startswith(("b", ".")) and PPCSIMM is not None:
+                if PPCINSTRUCTION != ".else" and "if" not in PPCINSTRUCTION:
 
                     fmtArray = []
-                    if _ppcSIMM.find("(") >= 0:
-                        if _ppcSIMM[_ppcSIMM.find("(")-1] not in "+-*/^|& \t":
-                            print(_ppcSIMM, "Successfully found label")
+                    if PPCSIMM.find("(") >= 0:
+                        if PPCSIMM[PPCSIMM.find("(")-1] not in "+-*/^|& \t":
+                            print(PPCSIMM, "Successfully found label")
                             return opcode.replace(";", "#", 1)
                             #TODO: Separate label from any mathmatical instructions
 
-                    for section in re.split(r"[,\s]+", _ppcSIMM):
+                    for section in re.split(r"[,\s]+", PPCSIMM):
                         section = section.strip()
                         if section == "":
                             continue
@@ -618,11 +619,11 @@ class PpcFormatter(object):
                             newSIMM += ", " + section[0]
                     
 
-                    return (_ppcInstruction + newSIMM).replace(";", "#", 1)
-            elif _ppcInstruction.endswith(":"):
+                    return (PPCINSTRUCTION + newSIMM).replace(";", "#", 1)
+            elif PPCINSTRUCTION.endswith(":"):
                 if _ppcComment is not None:
-                    return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ": " + _ppcComment
+                    return re.sub(sanitizeGex, "_", PPCINSTRUCTION)[:-1] + ": " + _ppcComment
                 else:
-                    return re.sub(sanitizeGex, "_", _ppcInstruction)[:-1] + ":"
+                    return re.sub(sanitizeGex, "_", PPCINSTRUCTION)[:-1] + ":"
 
             return opcode.replace(";", "#", 1)

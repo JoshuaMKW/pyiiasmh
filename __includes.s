@@ -144,6 +144,20 @@
     .endif
 .endm
 
+.macro __branch register address
+# Syntax: __branch <register> <address>
+#
+# Branches to the address contained by <register>
+# <address> sets the value of <register> before the operation, and is an optional argument; use NONE if not desired
+    .if \address == NONE
+        mtctr \register
+    .else
+        __set \register \address
+        mtctr \register
+    .endif
+	bctr
+.endm
+
 .macro __call register address
 # Syntax: __call <register> <address>
 #

@@ -219,6 +219,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
             QtWidgets.QMessageBox.about(self.app.activeWindow(), "About PyiiASMH 3", desc)
         elif dialog_type == "BuiltinsHelp":
+            self.uibuiltins.init_docs()
+            self.uibuiltins.funcSelect.clear()
+            for item in self.uibuiltins.docs:
+                self.uibuiltins.funcSelect.addItem(item[0])
             self.uibuiltins.show()
         else:  # dialog_type == "preferences":
             self.uiprefs.show()
