@@ -103,7 +103,22 @@ class PpcFormatter(object):
         tmpbin = Path(tmpdir, "code.bin")
 
         with txtfile.open("r") as f:
-            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo}\n\n" + "\n".join([l.replace(";", "#", 1) for l in f if ".include \"__includes.s\"" not in l]) + "\n"
+            _asm = ""
+            i = 0
+            for line in f:
+                if ".include \"__includes.s\"" in line:
+                    continue
+
+                stripped = line.strip()
+                if stripped == "":
+                    continue
+
+                if re.match(r"#inject\(0x[0-9a-fA-F]{8}\)", stripped) and i == 0:
+                    self.bapo = stripped[10:18]
+
+                _asm += stripped.replace(";", "#", 1) + "\n"
+                i += 1
+            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo}\n\n{_asm}"
 
         with txtfile.open("w") as f:
             f.write(_asm)

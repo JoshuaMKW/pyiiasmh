@@ -31,6 +31,7 @@ import re
 import signal
 import sys
 from pathlib import Path
+from typing import Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -112,7 +113,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         else:
             raise NotImplementedError(f"Action \"{action}\" is unsupported")
 
-    def get_uivars(self, action):
+    def get_uivars(self, action: Actions):
         if action == PyiiAsmhGui.Actions.DISASSEMBLE:
             self.geckocodes = str(self.ui.geckocodesPTextEdit.toPlainText())
         elif action == PyiiAsmhGui.Actions.ASSEMBLE:
@@ -152,7 +153,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         else:
             raise NotImplementedError(f"Action \"{action}\" is unsupported")
 
-    def confirm_prompt(self, title, text, inform_text, detailed_text=None):
+    def confirm_prompt(self, title: str, text: str, inform_text: str, detailed_text: Optional[str] = None) -> bool:
         cp = QtWidgets.QMessageBox(self.app.activeWindow())
         cp.setWindowTitle(title)
         cp.setText(text)
@@ -167,7 +168,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         return cp.exec_() == QtWidgets.QMessageBox.No
 
-    def confirm_helper(self, action, reload_file=False):
+    def confirm_helper(self, action, reload_file: bool = False):
         if self.prefs.get("confirm"):
             inform_text = "Unsaved data will be lost."
 
@@ -195,7 +196,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         else:
             action()
 
-    def show_dialog(self, dialog_type=None):
+    def show_dialog(self, dialog_type: str = None):
         if dialog_type == "aboutqt":
             QtWidgets.QMessageBox.aboutQt(self.app.activeWindow())
         elif dialog_type == "aboutpyiiasmh":
@@ -254,7 +255,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.setWindowTitle("PyiiASMH 3 - untitled")
         self.ui.statusBar().showMessage("New session started.", 3000)
 
-    def open_session(self, reload_file=False):
+    def open_session(self, reload_file: bool = False):
         if not reload_file:
             if self.filepath is None:  # Just start in the home directory
                 fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", str(Path.home()),
@@ -304,7 +305,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.log.exception(e)
             
 
-    def save_session(self, save_as=True):
+    def save_session(self, save_as: bool = True):
         if save_as:
             if self.filepath is None:  # Just start in the home directory
                 fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", str(Path.home()),
