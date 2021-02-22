@@ -27,25 +27,23 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import binascii
-import logging
-import os
 import re
 import shutil
 import sys
 import tempfile
-import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
+from pathlib import Path
+from typing import Any, Optional, Tuple, Union
 
-import ppctools
-from ppctools import get_program_folder, resource_path, PpcFormatter
-from errors import CodetypeError, UnsupportedOSError
+from errors import UnsupportedOSError
+from ppctools import PpcFormatter
+
 
 class PyiiAsmhApp(PpcFormatter):
 
     def __init__(self):
-        os.chdir(resource_path())
         super().__init__()
-        
+
         self.opcodes = None
         self.geckocodes = None
         self.bapo = None
@@ -53,14 +51,13 @@ class PyiiAsmhApp(PpcFormatter):
         self.chksum = None
         self.codetype = None
 
-    def assemble(self, inputfile, outputfile=None, filetype="text"):
-        tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
+    def assemble(self, inputasm: str, outputfile: Optional[Union[str, Path]] = None, filetype: str = "text") -> str:
+        tmpdir = Path(tempfile.mkdtemp(prefix="pyiiasmh-"))
 
         if filetype is None:
             try:
-                with open(os.path.join(tmpdir, "code.txt"), "w") as f:
-                    f.write(inputfile)
-                inputfile = None
+                Path(tmpdir, "code.txt").write_text(inputasm)
+                inputasm = None
             except IOError:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
@@ -68,10 +65,11 @@ class PyiiAsmhApp(PpcFormatter):
 
         try:
             toReturn = ""
-            machine_code = self.asm_opcodes(tmpdir, inputfile)
+            machine_code = self.asm_opcodes(tmpdir, inputasm)
         except UnsupportedOSError as e:
             self.log.exception(e)
-            toReturn = (f"Your OS '{sys.platform}' is not supported. See 'error.log' for details and also read the README.")
+            toReturn = (
+                f"Your OS \"{sys.platform}\" is not supported. See \"error.log\" for details and also read the README.")
         except IOError as e:
             self.log.exception(e)
             toReturn = f"Error: {str(e)}"
@@ -82,25 +80,32 @@ class PyiiAsmhApp(PpcFormatter):
             if self.bapo is not None:
                 if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
                     return f"Invalid ba/po: {self.bapo}"
-                elif int(self.bapo[2], 16) > 7 and self.bapo[1] == '1':
+                elif int(self.bapo[2], 16) > 7 and self.bapo[1] == "1":
                     return f"Invalid ba/po: {self.bapo}"
 
-            toReturn = self.construct_code(machine_code, self.bapo, self.xor, self.chksum, self.codetype)
+            toReturn = self.construct_code(
+                machine_code, self.bapo, self.xor, self.chksum, self.codetype)
             if outputfile is not None:
-                if filetype == 'text':
-                    with open(outputfile, 'w+') as output:
-                        output.write(toReturn)
-                elif filetype == 'bin':
-                    with open(outputfile, 'wb+') as output:
-                        output.write(bytes.fromhex(toReturn.replace('\n', '').replace(' ', '')))
+                if isinstance(outputfile, str):
+                    outputfile = Path(outputfile)
+
+                if filetype == "text":
+                    outputfile.write_text(toReturn)
+                elif filetype == "bin":
+                    outputfile.write_bytes(bytes.fromhex(
+                        toReturn.replace("\n", "").replace(" ", "")))
                 else:
-                    with open(outputfile, 'w+') as output:
-                        output.write(toReturn)
-        
+                    outputfile.write_text(toReturn)
+
         shutil.rmtree(tmpdir, ignore_errors=True)
         return toReturn
 
-    def disassemble(self, inputfile, outputfile=None, filetype="text", cFooter=True, formalNames=False):
+    def disassemble(self,
+                    inputfile,
+                    outputfile: Optional[Union[str, Path]] = None,
+                    filetype: str = "text",
+                    cFooter: bool = True,
+                    formalNames: bool = False) -> Tuple[str, Tuple[Any, Any, Any, Any]]:
         tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
         codes = None
 
@@ -125,7 +130,7 @@ class PyiiAsmhApp(PpcFormatter):
         rawcodes = self.deconstruct_code(codes, cFooter)
 
         try:
-            with open(os.path.join(tmpdir, "code.bin"), "wb") as f:
+            with Path(tmpdir, "code.bin").open("wb") as f:
                 rawhex = "".join("".join(rawcodes[0].split("\n")).split(" "))
                 try:
                     f.write(binascii.a2b_hex(rawhex))
@@ -139,15 +144,15 @@ class PyiiAsmhApp(PpcFormatter):
             opcodes = self.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
-            toReturn = ((f"Your OS '{sys.platform}' is not supported. " +
-                         "See 'error.log' for details and also read the README."),
-                        (None, None, None, None))
+            toReturn = [(f"Your OS \"{sys.platform}\" is not supported. " +
+                         "See \"error.log\" for details and also read the README."),
+                        (None, None, None, None)]
         except IOError as e:
             self.log.exception(e)
-            toReturn = ("Error: " + str(e), (None, None, None, None))
+            toReturn = ["Error: " + str(e), (None, None, None, None)]
         except RuntimeError as e:
             self.log.exception(e)
-            toReturn = (str(e), (None, None, None, None))
+            toReturn = [str(e), (None, None, None, None)]
         else:
             toReturn = [opcodes + "\n", rawcodes[1:]]
 
@@ -163,9 +168,9 @@ class PyiiAsmhApp(PpcFormatter):
 
         return toReturn
 
-    def run(self, parser, args, filetype='text'):
+    def run(self, parser: ArgumentParser, args: Namespace, filetype: str = "text"):
         # Check for incorrect usage
-        if args.codetype.upper() == 'RAW':
+        if args.codetype.upper() == "RAW":
             self.codetype = None
         else:
             self.codetype = args.codetype.upper()
@@ -178,97 +183,106 @@ class PyiiAsmhApp(PpcFormatter):
             if args.dest:
                 self.assemble(args.source, args.dest, filetype=filetype)
             else:
-                print('\n-----------------\n' + self.assemble(args.source, None, filetype=filetype).strip() + '\n-----------------\n')
+                print("\n-----------------\n" + self.assemble(args.source,
+                                                              None, filetype=filetype).strip() + "\n-----------------\n")
         elif args.job == "d":
             if args.dest:
-                self.disassemble(args.source, args.dest, filetype=filetype, cFooter=args.rmfooterasm, formalNames=args.formalnames)
+                self.disassemble(args.source, args.dest, filetype=filetype,
+                                 cFooter=args.rmfooterasm, formalNames=args.formalnames)
             else:
-                print('\n-----------------\n' + self.disassemble(args.source, None, filetype=filetype, cFooter=args.rmfooterasm, formalNames=args.formalnames)[0].strip() + '\n-----------------\n')
+                print("\n-----------------\n" + self.disassemble(args.source, None, filetype=filetype,
+                                                                 cFooter=args.rmfooterasm, formalNames=args.formalnames)[0].strip() + "\n-----------------\n")
         else:
             parser.print_help()
 
+
 def _ppc_exec():
-    parser = ArgumentParser(prog='PyiiASMH 3',
-                            description='Gecko code compiler for PPC assembly',
+    parser = ArgumentParser(prog="PyiiASMH 3",
+                            description="Gecko code compiler for PPC assembly",
                             allow_abbrev=False)
 
-    parser.add_argument('source', help='Source file')
-    parser.add_argument('job',
+    parser.add_argument("source", help="Source file")
+    parser.add_argument("job",
                         help="Job to execute. Valid jobs are `a' and `d'",
-                        choices=['a', 'd'])
-    parser.add_argument('--dest',
-                        help='Destination file',
-                        metavar='FILE')
-    parser.add_argument('--bapo',
-                        help='Address for the codehook',
-                        default='80000000',
-                        metavar='ADDR')
-    parser.add_argument('--codetype',
-                        help='The codetype being assembled',
-                        choices=['0414', '0616', 'C0', 'C2D2', 'F2F4', 'RAW'],
-                        default='RAW',
-                        metavar='TYPE')
-    parser.add_argument('--xor',
-                        help='The XOR checksum in hex used for the F2/F4 codetype',
-                        default='0000',
-                        metavar='HEXVALUE')
-    parser.add_argument('--samples',
-                        help='''The number of samples in hex to be XORed for the F2/F4 codetype.
-                        If negative, it searches backwards, else forwards''',
-                        default='00',
-                        metavar='HEXCOUNT')
-    parser.add_argument('--formalnames',
-                        help='Names r1 and r2 to be sp and rtoc respectively',
-                        action='store_true')
-    parser.add_argument('--rmfooterasm',
-                        help='Removes the footer from a C0 block if possible, only useful if your code already contains an exit point',
-                        action='store_true')
+                        choices=["a", "d"])
+    parser.add_argument("--dest",
+                        help="Destination file",
+                        metavar="FILE")
+    parser.add_argument("--bapo",
+                        help="Address for the codehook",
+                        default="80000000",
+                        metavar="ADDR")
+    parser.add_argument("--codetype",
+                        help="The codetype being assembled",
+                        choices=["0414", "0616", "C0", "C2D2", "F2F4", "RAW"],
+                        default="RAW",
+                        metavar="TYPE")
+    parser.add_argument("--xor",
+                        help="The XOR checksum in hex used for the F2/F4 codetype",
+                        default="0000",
+                        metavar="HEXVALUE")
+    parser.add_argument("--samples",
+                        help="""The number of samples in hex to be XORed for the F2/F4 codetype.
+                        If negative, it searches backwards, else forwards""",
+                        default="00",
+                        metavar="HEXCOUNT")
+    parser.add_argument("--formalnames",
+                        help="Names r1 and r2 to be sp and rtoc respectively",
+                        action="store_true")
+    parser.add_argument("--rmfooterasm",
+                        help="Removes the footer from a C0 block if possible, only useful if your code already contains an exit point",
+                        action="store_true")
 
     args = parser.parse_args()
-    dumptype = 'text'
+    args.source = Path(args.source).resolve()
+
+    if args.dest:
+        args.dest = Path(args.dest).resolve()
+
+    dumptype = "text"
 
     if args.bapo:
         try:
             addr = int(args.bapo, 16)
             if (addr < 0x80000000 or addr >= 0x81800000) and (addr < 0 or addr >= 0x01800000):
-                parser.error('The given ba/po address value {} is invalid'.format(args.bapo))
+                parser.error(
+                    f"The given ba/po address value {args.bapo} is invalid")
         except ValueError:
-            parser.error('The given ba/po address value {} is not a hex value'.format(args.bapo))
-    
+            parser.error(
+                f"The given ba/po address value {args.bapo} is not a hex value")
+
     if args.xor:
         try:
             int(args.xor, 16)
         except ValueError:
-            parser.error('The given XOR value {} is not a hex value'.format(args.xor))
+            parser.error(f"The given XOR value {args.xor} is not a hex value")
         if len(args.xor) > 4:
-            parser.error('The given XOR value {} is too large'.format(args.xor))
+            parser.error(f"The given XOR value {args.xor} is too large")
 
     if args.samples:
         try:
             int(args.samples, 16)
         except ValueError:
-            parser.error('The given samples value {} is not a hex value'.format(args.samples))
+            parser.error(
+                f"The given samples value {args.samples} is not a hex value")
         if len(args.samples) > 2:
-            parser.error('The given samples value {} is too large'.format(args.samples))
+            parser.error(
+                f"The given samples value {args.samples} is too large")
 
-    if args.dest and args.job == 'a':
-        if os.path.splitext(args.dest)[1].lower() == '.txt':
-            dumptype = 'text'
-        elif os.path.splitext(args.dest)[1].lower() in ('.bin', '.gct'):
-            dumptype = 'bin'
+    if args.dest and args.job == "a":
+        if args.dest.suffix.lower() == ".txt":
+            dumptype = "text"
+        elif args.dest.suffix.lower() in (".bin", ".gct"):
+            dumptype = "bin"
         else:
-            parser.error('Destination file {} is invalid type'.format(args.dest))
-    elif args.dest and args.job == 'd':
-        if os.path.splitext(args.dest)[1].lower() != '.txt':
-            parser.error('Destination file {} is invalid type'.format(args.dest))
-
-    args.source = os.path.abspath(args.source)
-
-    if args.dest:
-        args.dest = os.path.abspath(args.dest)
+            parser.error(f"Destination file {args.dest} is invalid type")
+    elif args.dest and args.job == "d":
+        if args.dest.suffix.lower() != ".txt":
+            parser.error(f"Destination file {args.dest} is invalid type")
 
     app = PyiiAsmhApp()
     app.run(parser, args, dumptype)
+
 
 if __name__ == "__main__":
     _ppc_exec()

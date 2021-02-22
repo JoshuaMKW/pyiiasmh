@@ -25,13 +25,12 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import logging
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 from struct import calcsize
-from typing import Union
+from typing import Optional, Tuple, Union
 
 from errors import CodetypeError, UnsupportedOSError
 
@@ -74,14 +73,14 @@ class PpcFormatter(object):
     AVAILABLE_PLATFORMS = ("darwin", "linux", "win32")
 
     def __init__(self):
-        if not os.path.exists(get_program_folder("PyiiASMH-3")):
-            os.mkdir(get_program_folder("PyiiASMH-3"))
+        if not get_program_folder("PyiiASMH-3").exists():
+            get_program_folder("PyiiASMH-3").mkdir()
 
         self.eabi = None
         self.vdappc = None
 
         self.log = logging.getLogger("PyiiASMH")
-        hdlr = logging.FileHandler(os.path.join(get_program_folder("PyiiASMH-3"), "error.log"))
+        hdlr = logging.FileHandler(str(get_program_folder("PyiiASMH-3") / "error.log"))
         formatter = logging.Formatter("\n%(levelname)s (%(asctime)s): %(message)s")
         hdlr.setFormatter(formatter)
         self.log.addHandler(hdlr)
@@ -104,7 +103,7 @@ class PpcFormatter(object):
         tmpbin = Path(tmpdir, "code.bin")
 
         with txtfile.open("r") as f:
-            _asm = ".include \"__includes.s\"\n\n" + "\n".join([l.replace(";", "#", 1) for l in f if ".include \"__includes.s\"" not in l]) + "\n"
+            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo}\n\n" + "\n".join([l.replace(";", "#", 1) for l in f if ".include \"__includes.s\"" not in l]) + "\n"
 
         with txtfile.open("w") as f:
             f.write(_asm)
@@ -155,7 +154,7 @@ class PpcFormatter(object):
         return rawhex
 
 
-    def dsm_geckocodes(self, tmpdir: Union[str, Path], txtfile: Union[str, Path] = None) -> str:
+    def dsm_geckocodes(self, tmpdir: Union[str, Path], txtfile: Optional[Union[str, Path]] = None) -> str:
         if sys.platform not in PpcFormatter.AVAILABLE_PLATFORMS:
             raise UnsupportedOSError(f"{sys.platform} OS is not supported")
 
@@ -375,7 +374,11 @@ class PpcFormatter(object):
         return rawhex + post
 
     @staticmethod
-    def construct_code(rawhex: str, bapo: str=None, xor: str=None, chksum: str=None, ctype: str=None) -> str:
+    def construct_code(rawhex: str,
+                       bapo: Optional[str] = None,
+                       xor: Optional[str] = None,
+                       chksum: Optional[str] = None,
+                       ctype: Optional[str] = None) -> str:
         if ctype is None:
             return rawhex
 
@@ -449,7 +452,7 @@ class PpcFormatter(object):
             return rawhex
 
     @staticmethod
-    def deconstruct_code(codes: str, cFooter: bool=True) -> str:
+    def deconstruct_code(codes: str, cFooter: bool = True) -> Tuple[str, str, str, str, str]:
         if codes[:2] not in ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5"):
             return (codes, None, None, None, None)
 
@@ -518,7 +521,7 @@ class PpcFormatter(object):
 
 
     @staticmethod
-    def _parse_ppc(line: str) -> tuple:
+    def _parse_ppc(line: str) -> Tuple[str, str, str]:
         """ Returns a tuple containing (instr., simm, comment) """
 
         _line = line.strip()

@@ -232,7 +232,7 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         QtCore.QMetaObject.connectSlotsByName(self)
 
     def init_docs(self):
-        self.docs = []
+        self.docs = [("INJECTADDR", "Dynamic value representing the injecton address of the compiled code", "const")]
         _names = []
         _docs = []
         _types = []

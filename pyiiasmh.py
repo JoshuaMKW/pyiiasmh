@@ -26,19 +26,19 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import os
-import re
-import sys
-import signal
-import logging
 import pickle as cPickle
+import re
+import signal
+import sys
+from pathlib import Path
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtGui, QtWidgets
 
-from pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
-from ppctools import get_program_folder, resource_path
-import mainwindow_ui
 import children_ui
+import mainwindow_ui
+from ppctools import get_program_folder
+from pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
+
 
 class PyiiAsmhGui(PyiiAsmhApp):
 
@@ -49,17 +49,17 @@ class PyiiAsmhGui(PyiiAsmhApp):
     def __init__(self):
         super().__init__()
 
-        self.app = None
-        self.ui = None
-        self.uiprefs = None
-        self.uibuiltins = None
-        self.filename = None
+        self.app: QtWidgets.QApplication = None
+        self.ui: mainwindow_ui.MainWindowUi = None
+        self.uiprefs: children_ui.PrefsUi = None
+        self.uibuiltins: children_ui.BuiltinsDocUI = None
+        self.filepath: Path = None
         self.prefs = {"confirm": True, "loadlast": False,
                       "autodecorate": True, "formalnaming": False,
                       "codetype": "RAW", "qtstyle": "Default",
                       "darktheme": False}
         
-        self.default_qtstyle = None
+        self.default_qtstyle: str = None
         self.style_log = []
 
     def convert(self, action: Actions):
@@ -235,7 +235,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.geckocodesPTextEdit.setPlainText("")
         self.ui.actionSave.setEnabled(False)
         self.ui.actionReload.setEnabled(False)
-        self.filename = None
+        self.filepath = None
         self.save_prefs()
 
         if self.prefs.get("codetype") == "04/14":
@@ -256,20 +256,20 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
     def open_session(self, reload_file=False):
         if not reload_file:
-            if self.filename is None:  # Just start in the home directory
-                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", os.path.expanduser("~"),
+            if self.filepath is None:  # Just start in the home directory
+                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", str(Path.home()),
                                                                   "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
-                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", os.path.split(self.filename)[0],
+                fname = str(QtWidgets.QFileDialog.getOpenFileName(self.ui, "Open Session", str(self.filepath.parent),
                                                                   "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
             if fname == "":  # Make sure we have something to open
                 return
             else:
-                self.filename = fname
+                self.filepath = Path(fname)
 
         try:
-            with open(self.filename, "rb") as f:
+            with self.filepath.open("rb") as f:
                 try:
                     data = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
@@ -298,28 +298,28 @@ class PyiiAsmhGui(PyiiAsmhApp):
                         self.ui.codetypeSelect.setCurrentIndex(5)
 
                     self.save_prefs()
-                    self.ui.setWindowTitle("PyiiASMH 3 - " + os.path.split(self.filename)[1])
-                    self.ui.statusBar().showMessage("Loaded session '" + os.path.split(self.filename)[1] + "'.", 3000)
+                    self.ui.setWindowTitle(f"PyiiASMH 3 - {self.filepath.name}")
+                    self.ui.statusBar().showMessage(f"Loaded session '{self.filepath.name}'.", 3000)
         except IOError as e:
             self.log.exception(e)
             
 
     def save_session(self, save_as=True):
         if save_as:
-            if self.filename is None:  # Just start in the home directory
-                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", os.path.expanduser("~"),
+            if self.filepath is None:  # Just start in the home directory
+                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", str(Path.home()),
                                                                   "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
             else:  # Start in the last directory used by the user
-                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", os.path.split(self.filename)[0],
+                fname = str(QtWidgets.QFileDialog.getSaveFileName(self.ui, "Save Session", str(self.filepath.parent),
                                                                   "PyiiASMH 3 session files (*.psav);;All files (*)")[0])
 
             if fname == "" or fname is None:  # Make sure we have something to open
                 return
             else:
-                self.filename = fname
+                self.filepath = Path(fname)
 
         try:
-            with open(self.filename, "wb") as f:
+            with self.filepath.open("wb") as f:
                 data = {}
                 data["bapo"] = str(self.ui.bapoLineEdit.text())
                 data["xor"] = str(self.ui.xorLineEdit.text())
@@ -345,8 +345,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.actionReload.setEnabled(True)
 
                 self.save_prefs()
-                self.ui.setWindowTitle("PyiiASMH 3 - " + os.path.split(self.filename)[1])
-                self.ui.statusBar().showMessage("Saved session '" + os.path.split(self.filename)[1] + "'.", 3000)
+                self.ui.setWindowTitle(f"PyiiASMH 3 - {self.filepath.name}")
+                self.ui.statusBar().showMessage(f"Saved session '{self.filepath.name}'.", 3000)
         except IOError as e:
             self.log.exception(e)
 
@@ -354,19 +354,19 @@ class PyiiAsmhGui(PyiiAsmhApp):
         datapath = get_program_folder("PyiiASMH-3")
 
         try:
-            with open(os.path.join(datapath, ".last.psav"), "rb") as f:
+            with Path(datapath, ".last.psav").open("rb") as f:
                 try:
                     filename = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
                     self.log.exception(e)
                 else:
                     if filename is not None:
-                        self.filename = filename
+                        self.filepath = Path(filename)
         except IOError:
             self.log.warning("No last session found.")
 
         try:
-            with open(os.path.join(datapath, ".PyiiASMH.conf"), "rb") as f:
+            with Path(datapath, ".PyiiASMH.conf").open("rb") as f:
                 try:
                     p = cPickle.load(f)
                 except cPickle.UnpicklingError as e:
@@ -443,14 +443,14 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.set_close_event(self.prefs.get("confirm"))
 
         try:
-            with open(os.path.join(datapath, ".PyiiASMH.conf"), "wb") as f:
+            with Path(datapath, ".PyiiASMH.conf").open("wb") as f:
                 cPickle.dump(self.prefs, f)
         except IOError as e:
             self.log.exception(e)
             
         try:
-            with open(os.path.join(datapath, ".last.psav"), "wb") as f:
-                cPickle.dump(self.filename, f)
+            with Path(datapath, ".last.psav").open("wb") as f:
+                cPickle.dump(str(self.filepath), f)
         except IOError as e:
             self.log.exception(e)
 
@@ -505,8 +505,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
     def run(self):
         datapath = get_program_folder("PyiiASMH-3")
 
-        if not os.path.isdir(datapath):
-            os.mkdir(datapath)
+        if not datapath.is_dir():
+            datapath.mkdir(parents=True)
 
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
@@ -530,8 +530,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
         self.ui.xorLineEdit.setValidator(validator)
         self.ui.checksumLineEdit.setValidator(validator)
 
-        if self.filename is not None and self.prefs.get("loadlast"):
-            self.open_session(self.filename)
+        if self.filepath and self.prefs.get("loadlast"):
+            self.open_session(self.filepath)
 
         self.connect_signals()
         self.ui.show()
