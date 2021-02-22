@@ -232,7 +232,15 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         QtCore.QMetaObject.connectSlotsByName(self)
 
     def init_docs(self):
-        self.docs = [("INJECTADDR", "Dynamic value representing the injecton address of the compiled code", "const")]
+        self.docs = [("#inject", "Syntax: #inject(addr)\n\n"
+                                 "pragma like shebang to be used at the very beginning of a code to set the injection address\n\n"
+                                 "Example:\n"
+                                 "  #inject(0x80241898)\n\n"
+                                 "  __set r3, INJECTADDR\n\n"
+                                 "Result (06 type):\n"
+                                 "  06241898 00000008\n"
+                                 "  3C608024 60631898", "shebang"),
+                     ("INJECTADDR", "Dynamic value representing the injecton address of the compiled code", "const")]
         _names = []
         _docs = []
         _types = []
