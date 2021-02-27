@@ -520,8 +520,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
         for i in range(0, len(list(QtWidgets.QStyleFactory.keys()))):
             self.uiprefs.qtstyleSelect.addItem(list(QtWidgets.QStyleFactory.keys())[i])
 
-        self.load_prefs()
         self.load_qtstyle(self.prefs.get("qtstyle"), True)
+        self.load_prefs()
         self.ui.opcodesPTextEdit.setFocus()
         self.ui.codetypeSelect.setCurrentIndex(self.uiprefs.codetypeSelect.currentIndex())
 
