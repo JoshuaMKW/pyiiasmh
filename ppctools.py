@@ -118,7 +118,7 @@ class PpcFormatter(object):
 
                 _asm += stripped.replace(";", "#", 1) + "\n"
                 i += 1
-            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo}\n\n{_asm}"
+            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo if self.bapo else '80000000'}\n\n{_asm}"
 
         with txtfile.open("w") as f:
             f.write(_asm)
