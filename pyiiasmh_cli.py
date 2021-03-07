@@ -33,10 +33,10 @@ import sys
 import tempfile
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
-from pyiiasmh.errors import UnsupportedOSError
-from pyiiasmh.ppctools import PpcFormatter
+from errors import UnsupportedOSError
+from ppctools import PpcFormatter
 
 
 class PyiiAsmhApp(PpcFormatter):
@@ -196,7 +196,7 @@ class PyiiAsmhApp(PpcFormatter):
             parser.print_help()
 
 
-def _ppc_exec(_args: List[str] = sys.argv):
+def _ppc_exec():
     parser = ArgumentParser(prog="PyiiASMH 3",
                             description="Gecko code compiler for PPC assembly",
                             allow_abbrev=False)
@@ -233,7 +233,7 @@ def _ppc_exec(_args: List[str] = sys.argv):
                         help="Removes the footer from a C0 block if possible, only useful if your code already contains an exit point",
                         action="store_true")
 
-    args = parser.parse_args(_args)
+    args = parser.parse_args()
     args.source = Path(args.source).resolve()
 
     if args.dest:

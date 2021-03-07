@@ -32,7 +32,7 @@ from pathlib import Path
 from struct import calcsize
 from typing import Optional, Tuple, Union
 
-from pyiiasmh.errors import CodetypeError, UnsupportedOSError
+from errors import CodetypeError, UnsupportedOSError
 
 
 def enclose_string(string: str) -> str:
