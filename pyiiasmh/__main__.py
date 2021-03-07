@@ -35,10 +35,11 @@ from typing import Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-import children_ui
-import mainwindow_ui
-from ppctools import get_program_folder
-from pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
+from pyiiasmh import __version__
+from pyiiasmh.gui.children_ui import BuiltinsDocUI, PrefsUi
+from pyiiasmh.gui.mainwindow_ui import MainWindowUi
+from pyiiasmh.ppctools import get_program_folder
+from pyiiasmh.pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
 
 
 class PyiiAsmhGui(PyiiAsmhApp):
@@ -51,9 +52,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
         super().__init__()
 
         self.app: QtWidgets.QApplication = None
-        self.ui: mainwindow_ui.MainWindowUi = None
-        self.uiprefs: children_ui.PrefsUi = None
-        self.uibuiltins: children_ui.BuiltinsDocUI = None
+        self.ui: MainWindowUi = None
+        self.uiprefs: PrefsUi = None
+        self.uibuiltins: BuiltinsDocUI = None
         self.filepath: Path = None
         self.prefs = {"confirm": True, "loadlast": False,
                       "autodecorate": True, "formalnaming": False,
@@ -252,7 +253,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
         else:
             self.ui.codetypeSelect.setCurrentIndex(5)
 
-        self.ui.setWindowTitle("PyiiASMH 3 - untitled")
+        self.ui.setWindowTitle(f"PyiiASMH 3 v{__version__} - untitled")
         self.ui.statusBar().showMessage("New session started.", 3000)
 
     def open_session(self, reload_file: bool = False):
@@ -299,7 +300,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
                         self.ui.codetypeSelect.setCurrentIndex(5)
 
                     self.save_prefs()
-                    self.ui.setWindowTitle(f"PyiiASMH 3 - {self.filepath.name}")
+                    self.ui.setWindowTitle(f"PyiiASMH 3 v{__version__} - {self.filepath.name}")
                     self.ui.statusBar().showMessage(f"Loaded session '{self.filepath.name}'.", 3000)
         except IOError as e:
             self.log.exception(e)
@@ -346,7 +347,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.actionReload.setEnabled(True)
 
                 self.save_prefs()
-                self.ui.setWindowTitle(f"PyiiASMH 3 - {self.filepath.name}")
+                self.ui.setWindowTitle(f"PyiiASMH 3 v{__version__} - {self.filepath.name}")
                 self.ui.statusBar().showMessage(f"Saved session '{self.filepath.name}'.", 3000)
         except IOError as e:
             self.log.exception(e)
@@ -511,9 +512,9 @@ class PyiiAsmhGui(PyiiAsmhApp):
 
         self.app = QtWidgets.QApplication(sys.argv)
         self.default_qtstyle = self.app.style().objectName()
-        self.ui = mainwindow_ui.MainWindowUi()
-        self.uiprefs = children_ui.PrefsUi()
-        self.uibuiltins = children_ui.BuiltinsDocUI()
+        self.ui = MainWindowUi()
+        self.uiprefs = PrefsUi()
+        self.uibuiltins = BuiltinsDocUI()
 
         self.uiprefs.qtstyleSelect.addItem("Default")
 
