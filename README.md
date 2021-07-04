@@ -1,4 +1,5 @@
 # pyiiasmh 3
+
 The cross platform Gecko Code compiler, updated to Python 3.x
 
 ![Imgur](https://i.imgur.com/t5VXS25.png)
@@ -10,6 +11,6 @@ The cross platform Gecko Code compiler, updated to Python 3.x
 
 **Executable:**
   This method of usage requires that you are running either `Windows 64bit` or `Linux 64bit`.
-  After these things are taken care off, you can simply run the program like any other
+  After these things are taken care off, you can simply run the program like any other.
 
-Once you have these things set up, simply run PyiiASMH 3 by using the optional desktop shortcut, or by executing the command `pyiiasmh` in the terminal
+Once you have these things set up, simply run PyiiASMH 3 as you would any app.
