@@ -38,6 +38,8 @@ from typing import Any, Optional, Tuple, Union
 from errors import UnsupportedOSError
 from ppctools import PpcFormatter
 
+from geckolibs.geckocode import *
+
 
 class PyiiAsmhApp(PpcFormatter):
 
@@ -63,6 +65,12 @@ class PyiiAsmhApp(PpcFormatter):
                 shutil.rmtree(tmpdir)
                 return None
 
+        _extend = lambda x, pad: f"{int(x, 16):0{pad}X}" if isinstance(x, str) else x
+
+        bapo = _extend(self.bapo, 8)
+        xor = _extend(self.xor, 4)
+        chksum = _extend(self.chksum, 2)
+
         try:
             toReturn = ""
             machine_code = self.asm_opcodes(tmpdir, inputasm)
@@ -70,21 +78,18 @@ class PyiiAsmhApp(PpcFormatter):
             self.log.exception(e)
             toReturn = (
                 f"Your OS \"{sys.platform}\" is not supported. See \"error.log\" for details and also read the README.")
-        except IOError as e:
+        except (IOError, RuntimeError) as e:
             self.log.exception(e)
             toReturn = f"Error: {str(e)}"
-        except RuntimeError as e:
-            self.log.exception(e)
-            toReturn = str(e)
         else:
-            if self.bapo is not None:
-                if self.bapo[0] not in ("8", "0") or self.bapo[1] not in ("0", "1"):
-                    return f"Invalid ba/po: {self.bapo}"
-                elif int(self.bapo[2], 16) > 7 and self.bapo[1] == "1":
-                    return f"Invalid ba/po: {self.bapo}"
+            if bapo is not None:
+                if bapo[0] not in ("8", "0") or bapo[1] not in ("0", "1"):
+                    return f"Invalid ba/po: {bapo}"
+                elif int(bapo[2], 16) > 7 and bapo[1] == "1":
+                    return f"Invalid ba/po: {bapo}"
 
             toReturn = self.construct_code(
-                machine_code, self.bapo, self.xor, self.chksum, self.codetype)
+                machine_code, bapo, xor, chksum, self.codetype)
             if outputfile is not None:
                 if isinstance(outputfile, str):
                     outputfile = Path(outputfile)
@@ -105,7 +110,7 @@ class PyiiAsmhApp(PpcFormatter):
                     outputfile: Optional[Union[str, Path]] = None,
                     filetype: str = "text",
                     cFooter: bool = True,
-                    formalNames: bool = False) -> Tuple[str, Tuple[Any, Any, Any, Any]]:
+                    formalNames: bool = False) -> PpcFormatter._CodePacket:
         tmpdir = tempfile.mkdtemp(prefix="pyiiasmh-")
         codes = None
 
@@ -125,13 +130,17 @@ class PyiiAsmhApp(PpcFormatter):
             except IOError as e:
                 self.log.exception("Failed to open input file.")
                 shutil.rmtree(tmpdir)
-                return [f"Error: {str(e)}", (None, None, None, None)]
+                return PpcFormatter._CodePacket(f"Error: {str(e)}")
 
-        rawcodes = self.deconstruct_code(codes, cFooter)
+        packet = self.deconstruct_code(codes, cFooter)
+        if packet.data is None:
+            return packet
+
+        toReturn = PpcFormatter._CodePacket()
 
         try:
             with Path(tmpdir, "code.bin").open("wb") as f:
-                rawhex = "".join("".join(rawcodes[0].split("\n")).split(" "))
+                rawhex = "".join("".join(packet.data.split("\n")).split(" "))
                 try:
                     f.write(binascii.a2b_hex(rawhex))
                 except binascii.Error:
@@ -140,29 +149,24 @@ class PyiiAsmhApp(PpcFormatter):
             self.log.exception("Failed to open temp file.")
 
         try:
-            toReturn = ["", (None, None, None, None)]
             opcodes = self.dsm_geckocodes(tmpdir, outputfile)
         except UnsupportedOSError:
             self.log.exception("")
-            toReturn = [(f"Your OS \"{sys.platform}\" is not supported. " +
-                         "See \"error.log\" for details and also read the README."),
-                        (None, None, None, None)]
-        except IOError as e:
+            toReturn.data = f"Your OS \"{sys.platform}\" is not supported. See \"error.log\" for details and also read the README."
+        except (IOError, RuntimeError) as e:
             self.log.exception(e)
-            toReturn = ["Error: " + str(e), (None, None, None, None)]
-        except RuntimeError as e:
-            self.log.exception(e)
-            toReturn = [str(e), (None, None, None, None)]
+            toReturn.data = f"Error: {e}"
         else:
-            toReturn = [opcodes + "\n", rawcodes[1:]]
+            toReturn = packet
+            toReturn.data = opcodes + "\n"
 
         if formalNames:
             opcodes = []
-            for line in toReturn[0].split("\n"):
+            for line in toReturn.data.split("\n"):
                 values = re.sub(r"(?<!c)r1(?![0-9])", "sp", line)
                 values = re.sub(r"(?<!c)r2(?![0-9])", "rtoc", values)
                 opcodes.append(values)
-            toReturn[0] = "\n".join(opcodes)
+            toReturn.data = "\n".join(opcodes)
 
         shutil.rmtree(tmpdir)
 

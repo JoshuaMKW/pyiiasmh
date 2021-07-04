@@ -33,23 +33,26 @@ from struct import calcsize
 from typing import Optional, Tuple, Union
 
 from errors import CodetypeError, UnsupportedOSError
+from geckolibs.geckocode import *
 
 
 def enclose_string(string: str) -> str:
     return "-"*(len(string) + 2) + "\n|" + string + "|\n" + "-"*(len(string) + 2)
 
+
 def resource_path(relative_path: str = "") -> Path:
     """ Get absolute path to resource, works for dev and for cx_freeze """
     if hasattr(sys, "_MEIPASS"):
-        return getattr(sys, "_MEIPASS", Path(__file__).parent) / relative_path
+        return Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / relative_path
     else:
         if getattr(sys, "frozen", False):
             # The application is frozen
             base_path = Path(sys.executable).parent
         else:
             base_path = Path(__file__).parent
-            
+
         return base_path / relative_path
+
 
 def get_program_folder(folder: str = "") -> Path:
     """ Get path to appdata """
@@ -69,8 +72,18 @@ def get_program_folder(folder: str = "") -> Path:
         raise NotImplementedError(f"{sys.platform} OS is unsupported")
     return datapath
 
+
 class PpcFormatter(object):
-    AVAILABLE_PLATFORMS = ("darwin", "linux", "win32")
+
+    class _CodePacket(object):
+        def __init__(self, data: str = "", codetype: GeckoCommand.Type = None, bapo: str = None, xor: str = None, checksum: str = None):
+            self.data = data
+            self.codetype = codetype
+            self.bapo = bapo
+            self.xor = xor
+            self.checksum = checksum
+
+    SupportedPlatforms = {"darwin", "linux", "win32"}
 
     def __init__(self):
         if not get_program_folder("PyiiASMH-3").exists():
@@ -80,17 +93,19 @@ class PpcFormatter(object):
         self.vdappc = None
 
         self.log = logging.getLogger("PyiiASMH")
-        hdlr = logging.FileHandler(str(get_program_folder("PyiiASMH-3") / "error.log"))
-        formatter = logging.Formatter("\n%(levelname)s (%(asctime)s): %(message)s")
+        hdlr = logging.FileHandler(
+            str(get_program_folder("PyiiASMH-3") / "error.log"))
+        formatter = logging.Formatter(
+            "\n%(levelname)s (%(asctime)s): %(message)s")
         hdlr.setFormatter(formatter)
         self.log.addHandler(hdlr)
 
         self._init_lib()
 
     def asm_opcodes(self, tmpdir: Union[str, Path], txtfile: Union[str, Path] = None) -> str:
-        if sys.platform not in PpcFormatter.AVAILABLE_PLATFORMS:
+        if sys.platform not in PpcFormatter.SupportedPlatforms:
             raise UnsupportedOSError(f"{sys.platform} OS is not supported")
-        
+
         for x in ("as", "ld", "objcopy"):
             if not self.eabi[x].is_file():
                 raise FileNotFoundError(f"{self.eabi[x]} not found")
@@ -99,14 +114,15 @@ class PpcFormatter(object):
             txtfile = Path(tmpdir, "code.txt")
         elif isinstance(txtfile, str):
             txtfile = Path(txtfile)
-            
+
         tmpbin = Path(tmpdir, "code.bin")
 
         with txtfile.open("r") as f:
+            includeLine = f".include \"{resource_path('__includes.s')}\"".replace("\\", "/")
             _asm = ""
             i = 0
             for line in f:
-                if ".include \"__includes.s\"" in line:
+                if includeLine in line:
                     continue
 
                 stripped = line.strip()
@@ -118,7 +134,7 @@ class PpcFormatter(object):
 
                 _asm += stripped.replace(";", "#", 1) + "\n"
                 i += 1
-            _asm = f".include \"__includes.s\"\n.set INJECTADDR, 0x{self.bapo if self.bapo else '80000000'}\n\n{_asm}"
+            _asm = f"{includeLine}\n.set INJECTADDR, 0x{self.bapo if self.bapo else '80000000'}\n\n{_asm}"
 
         with txtfile.open("w") as f:
             f.write(_asm)
@@ -133,14 +149,16 @@ class PpcFormatter(object):
 
             for index in re.findall(r"(?<=\^)\d+", errormsg):
                 instruction = assembly[int(index, 10) - 1].lstrip()
-                errormsg = re.sub(r"(?<! )\^", enclose_string(instruction) + "\n ^", errormsg + "\n\n", count=1)
+                errormsg = re.sub(r"(?<! )\^", enclose_string(
+                    instruction) + "\n ^", errormsg + "\n\n", count=1)
 
             raise RuntimeError(errormsg)
 
         output = subprocess.run(f'"{self.eabi["ld"]}" -Ttext 0x80000000 -o "{tmpdir}src2.o" "{tmpdir}src1.o"', shell=True,
                                 capture_output=True, text=True)
 
-        subprocess.run(f'"{self.eabi["objcopy"]}" -O binary "{tmpdir}src2.o" "{tmpbin}"', shell=True)
+        subprocess.run(
+            f'"{self.eabi["objcopy"]}" -O binary "{tmpdir}src2.o" "{tmpbin}"', shell=True)
 
         rawhex = ""
         try:
@@ -159,7 +177,8 @@ class PpcFormatter(object):
             resSegments = output.stderr.split(r"\r\n")
             for segment in resSegments:
                 try:
-                    index = int(re.findall(r"(?<=\(\.text\+)[0-9a-fA-Fx]+", segment)[0], 16) >> 2
+                    index = int(re.findall(
+                        r"(?<=\(\.text\+)[0-9a-fA-Fx]+", segment)[0], 16) >> 2
                     msg = re.findall(r"(?<=\): ).+", segment)[0]
                     instruction = assembly[index + 1].lstrip()
                 except (TypeError, IndexError):
@@ -168,9 +187,8 @@ class PpcFormatter(object):
 
         return rawhex
 
-
     def dsm_geckocodes(self, tmpdir: Union[str, Path], txtfile: Optional[Union[str, Path]] = None) -> str:
-        if sys.platform not in PpcFormatter.AVAILABLE_PLATFORMS:
+        if sys.platform not in PpcFormatter.SupportedPlatforms:
             raise UnsupportedOSError(f"{sys.platform} OS is not supported")
 
         if not self.vdappc.is_file():
@@ -178,7 +196,8 @@ class PpcFormatter(object):
 
         tmpfile = Path(tmpdir, "code.bin")
 
-        output = subprocess.run(f'"{self.vdappc}" "{tmpfile}" 0', shell=True, capture_output=True, text=True)
+        output = subprocess.run(
+            f'"{self.vdappc}" "{tmpfile}" 0', shell=True, capture_output=True, text=True)
 
         if output.stderr:
             raise RuntimeError(output.stderr)
@@ -241,27 +260,32 @@ class PpcFormatter(object):
     @staticmethod
     def _format_opcodes(opcodes: str) -> str:
         BRANCHLABEL = ".loc_0x{:X}:"
-        #NONHEXINSTRUCTIONS = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
+        # NONHEXINSTRUCTIONS = ("rlwinm", "rlwinm.", "rlwnm", "rlwnm.", "rlwimi", "rlwimi.", "crclr", "crxor",
         #                      "cror", "crorc", "crand", "crnand", "crandc", "crnor", "creqv", "crse", "crnot", "crmove")
-        PPCPATTERN = re.compile(r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
+        PPCPATTERN = re.compile(
+            r"([a-fA-F0-9]+)(?:\:  )([a-fA-F0-9]+)(?:\s+)([a-zA-Z.+-_]+)(?:[ \t]+|)([-\w,()]+|)")
         PSLOADSTORES = ("psq_l", "psq_lu", "psq_st", "psq_stu")
-        UNSIGNEDINSTRUCTIONS = ("lis", "ori", "oris", "xori", "xoris", "andi.", "andis.")
+        UNSIGNEDINSTRUCTIONS = ("lis", "ori", "oris",
+                                "xori", "xoris", "andi.", "andis.")
 
         # Format the output from vdappc
         _textOutput = []
         _labels = []
 
         for PPCOFFSET, PPCRAW, PPCINSTRUCTION, PPCSIMM in re.findall(PPCPATTERN, opcodes):
-            #Branch label stuff
+            # Branch label stuff
             if PPCINSTRUCTION.startswith("b") and "r" not in PPCINSTRUCTION:
                 if PPCINSTRUCTION == "b" or PPCINSTRUCTION == "bl":
-                    SIMM = PpcFormatter._sign_extendb(int(PPCRAW[1:], 16) & 0x3FFFFFC)
+                    SIMM = PpcFormatter._sign_extendb(
+                        int(PPCRAW[1:], 16) & 0x3FFFFFC)
                 else:
-                    SIMM = PpcFormatter._sign_extend16(int(PPCRAW[4:], 16) & 0xFFFC)
+                    SIMM = PpcFormatter._sign_extend16(
+                        int(PPCRAW[4:], 16) & 0xFFFC)
 
                 newSIMM = re.sub("0x-", "-0x", "0x{:X}".format(SIMM))
                 offset = int(PPCOFFSET, 16) + SIMM
-                bInRange = (offset >> 2) > 0 and offset <= len(re.findall(PPCPATTERN, opcodes)) << 2
+                bInRange = (offset >> 2) > 0 and offset <= len(
+                    re.findall(PPCPATTERN, opcodes)) << 2
                 label = BRANCHLABEL.format(offset & 0xFFFFFFFC)
 
                 if label not in _labels and bInRange is True:
@@ -269,18 +293,23 @@ class PpcFormatter(object):
 
                 if bInRange is True or offset == 0:
                     if "," in PPCSIMM:
-                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), PPCSIMM))
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(
+                            r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + label[:-1].rstrip(), PPCSIMM))
                     else:
-                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + label[:-1].rstrip())
+                        _textOutput.append(
+                            "  " + PPCINSTRUCTION.ljust(10, " ") + label[:-1].rstrip())
                 else:
                     if "," in PPCSIMM:
-                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), PPCSIMM))
+                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + re.sub(
+                            r"(?<=,| )(?:0x| +|)[a-fA-F0-9]+", " " + newSIMM.rstrip(), PPCSIMM))
                     else:
-                        _textOutput.append("  " + PPCINSTRUCTION.ljust(10, " ") + newSIMM.rstrip())
+                        _textOutput.append(
+                            "  " + PPCINSTRUCTION.ljust(10, " ") + newSIMM.rstrip())
             elif PPCINSTRUCTION[:1] in ("s", "l") and PPCINSTRUCTION.endswith("u") and PPCSIMM[-4:] == "(r0)":
-                _textOutput.append("  " + ".long".ljust(10, " ") + "0x" + PPCRAW)
+                _textOutput.append(
+                    "  " + ".long".ljust(10, " ") + "0x" + PPCRAW)
             else:
-                #Set up cleaner format
+                # Set up cleaner format
                 values = PPCSIMM
                 if PPCSIMM.count(",") < 4 or PPCINSTRUCTION in PSLOADSTORES:
                     _currentfmtpos = 0
@@ -289,20 +318,24 @@ class PpcFormatter(object):
                         if decimal != "0":
                             if "(" in decimal and PPCINSTRUCTION not in UNSIGNEDINSTRUCTIONS:
                                 if PPCINSTRUCTION in PSLOADSTORES:
-                                    decimal = "0x{:X}(".format(PpcFormatter._sign_extendps(int(decimal[:-1], 10)))
+                                    decimal = "0x{:X}(".format(
+                                        PpcFormatter._sign_extendps(int(decimal[:-1], 10)))
                                 else:
-                                    decimal = "0x{:X}(".format(int(decimal[:-1], 10))
+                                    decimal = "0x{:X}(".format(
+                                        int(decimal[:-1], 10))
                                 decimal = decimal.replace("0x-", "-0x")
                             elif PPCINSTRUCTION not in UNSIGNEDINSTRUCTIONS:
                                 decimal = "0x{:X}".format(int(decimal, 10))
                                 decimal = decimal.replace("0x-", "-0x")
                             else:
                                 if int(decimal, 10) < 0:
-                                    decimal = "0x{:X}".format(0x10000 - abs(int(decimal, 10)))
+                                    decimal = "0x{:X}".format(
+                                        0x10000 - abs(int(decimal, 10)))
                                 else:
                                     decimal = "0x{:X}".format(int(decimal, 10))
-                            
-                        values = values[:_currentfmtpos] + re.sub(r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values[_currentfmtpos:], count=1)
+
+                        values = values[:_currentfmtpos] + re.sub(
+                            r"(?<=,)(?<!r|c)[-\d]+(?!x)(?:\(|)", decimal, values[_currentfmtpos:], count=1)
                         _currentfmtpos = matchObj.end() + (len(decimal) - (matchObj.end() - matchObj.start()))
 
                     if PPCINSTRUCTION not in PSLOADSTORES:
@@ -311,9 +344,10 @@ class PpcFormatter(object):
                 elif PPCINSTRUCTION == "crclr" or PPCINSTRUCTION == "crse":
                     values = re.sub(r",\d", "", values)
 
-                _textOutput.append("  " + PPCINSTRUCTION.replace(".word", ".long").ljust(10, " ") + values.rstrip())
+                _textOutput.append(
+                    "  " + PPCINSTRUCTION.replace(".word", ".long").ljust(10, " ") + values.rstrip())
 
-        #Set up _labels in text output
+        # Set up _labels in text output
         _textOutput.insert(0, BRANCHLABEL.format(0))
         for i, label in enumerate(sorted(sorted(_labels, key=str), key=len), start=1):
             labelOffset = re.findall("(?:(-0x|0x))([a-fA-F0-9]+)", label)
@@ -362,43 +396,46 @@ class PpcFormatter(object):
             return value
 
     @staticmethod
-    def _align_header(rawhex: str, post: str, codetype: str, numbytes: str) -> str:
+    def _align_header(rawhex: str, post: str, codetype: GeckoCommand.Type, numbytes: str) -> str:
         endingZeros = int(numbytes, 16) % 8
 
-        if codetype == "0414":
+        if codetype == Write32.codetype:
             post = "00000000"[:(4 - endingZeros)*2]
-        elif codetype == "0616":
+        elif codetype == WriteString.codetype:
             if endingZeros > 4:
                 post = "00000000 00000000"[1 + endingZeros*2:]
             elif endingZeros > 0:
                 post = "00000000 00000000"[endingZeros*2:]
             else:
                 post = ""
-        elif codetype == "C0":
+        elif codetype == AsmExecute.codetype:
             if endingZeros > 4:
-                post = "00000000 00000000\n4E800020 00000000"[1 + endingZeros*2:]
+                post = "00000000 00000000\n4E800020 00000000"[
+                    1 + endingZeros*2:]
             elif endingZeros > 0:
                 post = "00000000 4E800020"[endingZeros*2:]
             elif post == "4E800020 00000000":
                 post = "\n" + post
-        elif codetype in ("C2D2", "F2F4"):
+        elif codetype in {AsmInsert.codetype, AsmInsertLink.codetype, AsmInsertXOR.codetype}:
             if endingZeros > 4:
-                post = "00000000 00000000\n60000000 00000000"[1 + endingZeros*2:]
+                post = "00000000 00000000\n60000000 00000000"[
+                    1 + endingZeros*2:]
             elif endingZeros > 0:
                 post = "00000000 00000000"[endingZeros*2:]
         return rawhex + post
 
-    @staticmethod
-    def construct_code(rawhex: str,
+    def construct_code(self,
+                       rawhex: str,
                        bapo: Optional[str] = None,
                        xor: Optional[str] = None,
                        chksum: Optional[str] = None,
-                       ctype: Optional[str] = None) -> str:
+                       ctype: Optional[GeckoCommand.Type] = None) -> str:
         if ctype is None:
             return rawhex
 
         numlines = "{:X}".format(len(rawhex.split("\n")))
-        numbytes = "{:X}".format(len(rawhex.replace("\n", "").replace(" ", "")) >> 1)
+        numbytes = "{:X}".format(
+            len(rawhex.replace("\n", "").replace(" ", "")) >> 1)
         leading_zeros = ["0" * (8 - len(numlines)), "0" * (8 - len(numbytes))]
 
         try:
@@ -413,119 +450,138 @@ class PpcFormatter(object):
             else:
                 post = "\n60000000 00000000"
 
-            if ctype == "C0":
-                pre = "C0000000 {}\n".format("".join(leading_zeros[0]) + numlines)
+            if ctype == Write32.codetype:
+                pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
+                if bapo[1] == "1":
+                    pre += "5"
+                else:
+                    pre += "4"
+
+                newhex = ""
+                address = int(bapo, 16) & 0xFFFFFF
+
+                for opcodeline in rawhex.split("\n"):
+                    for opcode in opcodeline.split(" "):
+                        if opcode == "":
+                            break
+                        newhex += pre + "{:06X} ".format(address) + PpcFormatter._align_header(
+                            opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
+                        address += 4
+
+                return newhex
+
+            elif ctype == WriteString.codetype:
+                pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
+                if bapo[1] == "1":
+                    pre += "7" + bapo[2:] + " "
+                else:
+                    pre += "6" + bapo[2:] + " "
+                pre += "".join(leading_zeros[1]) + numbytes + "\n"
+            elif ctype == AsmExecute.codetype:
+                pre = "C0000000 {}\n".format(
+                    "".join(leading_zeros[0]) + numlines)
                 post = "4E800020" + post[-9:]
-            else:
+            elif ctype == AsmInsert.codetype:
                 pre = {"8": "C", "0": "D"}.get(bapo[0], "C")
                 if bapo[1] == "1":
                     pre += "3" + bapo[2:] + " "
                 else:
                     pre += "2" + bapo[2:] + " "
+                pre += "".join(leading_zeros[0]) + numlines + "\n"
+            elif ctype == AsmInsertLink.codetype:
+                pre = {"8": "C", "0": "D"}.get(bapo[0], "C")
+                if bapo[1] == "1":
+                    pre += "5" + bapo[2:] + " "
+                else:
+                    pre += "4" + bapo[2:] + " "
+                pre += "".join(leading_zeros[0]) + numlines + "\n"
 
-                if ctype == "0414":
-                    pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
+            else:  # ctype == "F2F4"
+                if int(numlines, 16) <= 0xFF:
+                    pre = "F"
                     if bapo[1] == "1":
-                        pre += "5"
+                        pre += ("5" if bapo[1] == "1" else "3") + bapo[2:] + " "
                     else:
-                        pre += "4"
+                        pre += ("4" if bapo[1] == "1" else "2") + bapo[2:] + " "
+                    if int(numlines, 16) <= 0xF:
+                        numlines = f"0{numlines}"
 
-                    newhex = ""
-                    address = int(bapo, 16) & 0xFFFFFF
-
-                    for opcodeline in rawhex.split("\n"):
-                        for opcode in opcodeline.split(" "):
-                            if opcode == "":
-                                break
-                            newhex += pre + "{:06X} ".format(address) + PpcFormatter._align_header(opcode, post, ctype, "{:X}".format(len(opcode) >> 1)) + '\n'
-                            address += 4
-
-                    return newhex
-
-                elif ctype == "0616":
-                    pre = {"8": "0", "0": "1"}.get(bapo[0], "0")
-                    if bapo[1] == "1":
-                        pre += "7" + bapo[2:] + " "
-                    else:
-                        pre += "6" + bapo[2:] + " "
-                    pre += "".join(leading_zeros[1]) + numbytes + "\n"
-
-                elif ctype == "C2D2":
-                    pre += "".join(leading_zeros[0]) + numlines + "\n"
-
-                else:  # ctype == "F2F4"
-                    if int(numlines, 16) <= 0xFF:
-                        pre = "F" + str(int({"D": "2"}.get(pre[0], "0")) + int(pre[1]))
-                        if int(numlines, 16) <= 0xF:
-                            numlines = "0"+numlines
-
-                        pre += bapo[2:] + " " + "{:02X}".format(int(chksum, 16)) + "{:04X}".format(int(xor, 16)) + numlines + "\n"
-                    else:
-                        raise CodetypeError(f"Number of lines ({numlines}) must be lower than 0xFF")
+                    pre += f"{chksum}{xor}{numlines}\n"
+                else:
+                    raise CodetypeError(
+                        f"Number of lines ({numlines}) must be lower than 0xFF")
             return pre + PpcFormatter._align_header(rawhex[:-1], post, ctype, numbytes)
         else:
             return rawhex
 
-    @staticmethod
-    def deconstruct_code(codes: str, cFooter: bool = True) -> Tuple[str, str, str, str, str]:
-        if codes[:2] not in ("04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "F2", "F3", "F4", "F5"):
-            return (codes, None, None, None, None)
+    def deconstruct_code(self, codes: str, cFooter: bool = True) -> _CodePacket:
+        packet = PpcFormatter._CodePacket()
+        for char in "".join(codes.split()):
+            if char not in "0123456789abcdefABCDEF":
+                self.log.exception(
+                    "Code passed to deconstruct_code has invalid characters")
+                return PpcFormatter._CodePacket(None)
 
-        bapo = None
-        xor = None
-        chksum = None
-        codetype = "C0"
-
-        if codes[:2] != "C0":
-            codetype = "C2D2"
-            bapo = {"0": "8", "1": "0", "C": "8", "D": "0", "F": "8"}.get(codes[0], "8")
-            if codes[1] in ("4", "5") and codes[0] == "F":
-                bapo = "0"
-            bapo += str(int(codes[1]) % 2) + codes[2:8]
-
-            if codes[0] == "F":
-                codetype = "F2F4"
-                chksum = codes[9:11]
-                xor = codes[11:15]
-            elif codes[:2] in ("06", "07", "16", "17"):
-                codetype = "0616"
-            elif codes[:2] in ("04", "05", "14", "15"):
-                codetype = "0414"
-
-        if codetype == "0616":
-            length = int(codes[9:17], 16)
-            newindex = (length + 3) & -4
-            if newindex % 8 == 0:
-                return (codes[18:], bapo, xor, chksum, codetype)
-            else:
-                return (codes[18:-9], bapo, xor, chksum, codetype)
-
-        elif codetype == "0414":
-            fcodes = ""
-            for i, line in enumerate(codes.split("\n")):
-                fcodes += line[9:]
-                if i % 2 == 0:
-                    fcodes += " "
+        if codes[:2] in {"04", "14", "05", "15", "06", "07", "16", "17", "C0", "C2", "C3", "D2", "D3", "C4", "D4", "C5", "D5", "F2", "F3", "F4", "F5"}:
+            geckocommand = GeckoCommand.str_to_geckocommand(codes)
+            packet.codetype = geckocommand.codetype
+            if hasattr(geckocommand, "_address"):
+                if geckocommand.is_po_type():
+                    packet.bapo = f"{geckocommand._address | (0x80000000 if geckocommand._isPointerType else 0):8X}"
                 else:
-                    fcodes += "\n"
-            return (fcodes.strip(), bapo, xor, chksum, codetype)
-
-        if codes[-17:-9] == "60000000" or (codes[-17:] == "4E800020 00000000" and codetype == "C0" and cFooter):
-            return (codes[18:-17], bapo, xor, chksum, codetype)
+                    packet.bapo = f"{geckocommand._address | 0x80000000:8X}"
+            if geckocommand == Write32:
+                fcodes = ""
+                for i, line in enumerate(codes.split("\n")):
+                    fcodes += line[9:]
+                    if i % 2 == 0:
+                        fcodes += " "
+                    else:
+                        fcodes += "\n"
+                packet.data = fcodes.strip()
+            elif geckocommand == WriteString:
+                length = int(codes[9:17], 16)
+                newindex = (length + 3) & -4
+                if newindex % 8 == 0:
+                    packet.data = codes[18:]
+                else:
+                    packet.data = codes[18:-9]
+            elif geckocommand == AsmExecute:
+                if codes[-17:-9] == "60000000" or (codes[-17:] == "4E800020 00000000" and cFooter):
+                    packet.data = codes[18:-17]
+                else:
+                    packet.data = codes[18:-9]
+            elif geckocommand == AsmInsert:
+                if codes[-17:-9] == "60000000" or (codes[-17:] == "4E800020 00000000"):
+                    packet.data = codes[18:-17]
+                else:
+                    packet.data = codes[18:-9]
+            elif geckocommand == AsmInsertLink:
+                if codes[-17:-9] == "60000000" or (codes[-17:] == "4E800020 00000000"):
+                    packet.data = codes[18:-17]
+                else:
+                    packet.data = codes[18:-9]
+            elif geckocommand == AsmInsertXOR:
+                packet.checksum = codes[9:11]
+                packet.xor = codes[11:15]
         else:
-            return (codes[18:-9], bapo, xor, chksum, codetype)
+            packet.data = codes
+
+        return packet
 
     @staticmethod
-    def _first_instance_of(char: str, string: str, _start: int = -1, _end: int = -1) -> list:
+    def _first_instance_of(char: str, string: str, _start: int = -1, _end: int = -1) -> Tuple[str, int]:
         """ Return the character and first occuring index of in a list """
-        if _start == -1: _start = 0
-        if _end == -1: _end = len(string)
+        if _start == -1:
+            _start = 0
+        if _end == -1:
+            _end = len(string)
 
         if isinstance(char, str):
             return char, string.find(char, _start, _end)
         else:
-            char = list(char) #ensure mutable
-            returnchar = [ "", -1 ]
+            char = list(char)  # ensure mutable
+            returnchar = ["", -1]
             for _char in char:
                 if returnchar[0] == "" and string.find(_char, _start, _end) > -1:
                     returnchar = [_char, string.find(_char, _start, _end)]
@@ -533,7 +589,6 @@ class PpcFormatter(object):
                     if string.find(_char, _start, _end) < returnchar[1] and string.find(_char, _start, _end) > -1:
                         returnchar = [_char, string.find(_char, _start, _end)]
             return returnchar
-
 
     @staticmethod
     def _parse_ppc(line: str) -> Tuple[str, str, str]:
@@ -559,7 +614,8 @@ class PpcFormatter(object):
                 return _line[:commentIndex].strip(), None, _ppcComment
             else:
                 if len(_line[:commentIndex].split(" ", maxsplit=1)) == 2:
-                    PPCINSTRUCTION, PPCSIMM = _line[:commentIndex].split(" ", maxsplit=1)
+                    PPCINSTRUCTION, PPCSIMM = _line[:commentIndex].split(
+                        " ", maxsplit=1)
                 elif len(_line[:commentIndex].split(" ", maxsplit=1)) == 1:
                     PPCINSTRUCTION = _line[:commentIndex].strip()
         else:
@@ -596,7 +652,7 @@ class PpcFormatter(object):
                         if PPCSIMM[PPCSIMM.find("(")-1] not in "+-*/^|& \t":
                             print(PPCSIMM, "Successfully found label")
                             return opcode.replace(";", "#", 1)
-                            #TODO: Separate label from any mathmatical instructions
+                            # TODO: Separate label from any mathmatical instructions
 
                     for section in re.split(r"[,\s]+", PPCSIMM):
                         section = section.strip()
@@ -617,25 +673,26 @@ class PpcFormatter(object):
                         if not isRegister:
                             if not section.startswith("("):
                                 closingParen = section.find(")")
-                                splitIndex = PpcFormatter._first_instance_of(("+", "-", "/", "*", "^", "|", "&"), section.strip("(").strip(")"))[1]
-                                
+                                splitIndex = PpcFormatter._first_instance_of(
+                                    ("+", "-", "/", "*", "^", "|", "&"), section.strip("(").strip(")"))[1]
+
                                 section = re.sub(sanitizeGex, "_", section)
                                 if closingParen > -1 and isParen is True:
-                                    section = section[:closingParen] + ")" + section[closingParen + 1:]
+                                    section = section[:closingParen] + \
+                                        ")" + section[closingParen + 1:]
                                     isParen = False
                             else:
-                                section = "(" + re.sub(sanitizeGex, "_", section)[1:]
+                                section = "(" + re.sub(sanitizeGex,
+                                                       "_", section)[1:]
                                 isParen = True
-                        
-                        fmtArray.append([section, isParen])
 
+                        fmtArray.append([section, isParen])
 
                     for i, section in enumerate(fmtArray):
                         if section[1] is True or i < 1:
                             newSIMM += " " + section[0]
                         else:
                             newSIMM += ", " + section[0]
-                    
 
                     return (PPCINSTRUCTION + newSIMM).replace(";", "#", 1)
             elif PPCINSTRUCTION.endswith(":"):

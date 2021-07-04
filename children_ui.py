@@ -26,6 +26,7 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from ppctools import resource_path
 import sys
 
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -41,7 +42,7 @@ class PrefsUi(QtWidgets.QDialog):
         self.resize(0, 0)
         self.setModal(True)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(str(resource_path("PyiiASMH.ico"))), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setMinimumSize(QtCore.QSize(280, 40))
@@ -173,7 +174,7 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         self.setMaximumSize(QtCore.QSize(700, 400))
         self.setModal(True)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(str(resource_path("PyiiASMH.ico"))), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
 
         self.objtypebar = QtWidgets.QPlainTextEdit(self)
@@ -246,7 +247,7 @@ class BuiltinsDocUI(QtWidgets.QDialog):
         _types = []
 
         try:
-            with open("__includes.s", "r") as builtins:
+            with resource_path("__includes.s").open("r") as builtins:
                 commentready = False
                 _documentation = ""
                 for line in builtins.readlines():

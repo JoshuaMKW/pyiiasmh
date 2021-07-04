@@ -30,6 +30,7 @@
 import sys
 
 from PyQt5 import QtCore, QtWidgets, QtGui
+from ppctools import resource_path
 
 class MainWindowUi(QtWidgets.QMainWindow):
 
@@ -93,7 +94,7 @@ class MainWindowUi(QtWidgets.QMainWindow):
         font.setWeight(42)
         self.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("PyiiASMH.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(str(resource_path("PyiiASMH.ico"))), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
@@ -205,8 +206,9 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("MainWindow", "04/14", None))
         self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("MainWindow", "06/16", None))
         self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("MainWindow", "C2/D2", None))
-        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("MainWindow", "F2/F4", None))
-        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("MainWindow", "RAW", None))
+        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("MainWindow", "C4/D4", None))
+        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("MainWindow", "F2/F4", None))
+        self.codetypeSelect.setItemText(6, QtWidgets.QApplication.translate("MainWindow", "RAW", None))
 
         self.codetypeLayout.addWidget(self.codetypeSelect, 0, 3, 1, 1)
 
@@ -518,14 +520,14 @@ class MainWindowUi(QtWidgets.QMainWindow):
         QtCore.QMetaObject.connectSlotsByName(self)
 
     def setEditFields(self):
-        if self.codetypeSelect.currentText() in ("C0", "RAW"):
+        if self.codetypeSelect.currentText() in {"C0", "RAW"}:
             self.bapoLabel.setDisabled(True)
             self.bapoLineEdit.setDisabled(True)
             self.xorLabel.setDisabled(True)
             self.xorLineEdit.setDisabled(True)
             self.checksumLabel.setDisabled(True)
             self.checksumLineEdit.setDisabled(True)
-        elif self.codetypeSelect.currentText() in ("04/14", "06/16", "C2/D2"):
+        elif self.codetypeSelect.currentText() in {"04/14", "06/16", "C2/D2", "C4/D4"}:
             self.bapoLabel.setEnabled(True)
             self.bapoLineEdit.setEnabled(True)
             self.xorLabel.setDisabled(True)
@@ -554,8 +556,9 @@ class MainWindowUi(QtWidgets.QMainWindow):
         self.codetypeSelect.setItemText(1, QtWidgets.QApplication.translate("Dialog", "04/14", None))
         self.codetypeSelect.setItemText(2, QtWidgets.QApplication.translate("Dialog", "06/16", None))
         self.codetypeSelect.setItemText(3, QtWidgets.QApplication.translate("Dialog", "C2/D2", None))
-        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
-        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("Dialog", "RAW", None))
+        self.codetypeSelect.setItemText(4, QtWidgets.QApplication.translate("Dialog", "C4/D4", None))
+        self.codetypeSelect.setItemText(5, QtWidgets.QApplication.translate("Dialog", "F2/F4", None))
+        self.codetypeSelect.setItemText(6, QtWidgets.QApplication.translate("Dialog", "RAW", None))
 
         self.codetypeLabel.setText(QtWidgets.QApplication.translate("MainWindow", "   Code Type", None))
         self.opcodesLabel.setText(QtWidgets.QApplication.translate("MainWindow", "PPC Opcodes", None))

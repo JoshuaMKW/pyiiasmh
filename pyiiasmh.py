@@ -40,6 +40,8 @@ import mainwindow_ui
 from ppctools import get_program_folder
 from pyiiasmh_cli import PyiiAsmhApp, _ppc_exec
 
+from geckolibs.geckocode import *
+
 
 class PyiiAsmhGui(PyiiAsmhApp):
 
@@ -84,11 +86,15 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 _stbar.showMessage("Failed to assemble opcodes into gecko codes.", 3000)
         elif action == PyiiAsmhGui.Actions.DISASSEMBLE:
             dsm_out = self.disassemble(self.geckocodes, None, None, self.uiprefs.autodecorate.isChecked(), self.uiprefs.formalnaming.isChecked())
-            self.opcodes = dsm_out[0]
-            self.bapo = dsm_out[1][0]
-            self.xor = dsm_out[1][1]
-            self.chksum = dsm_out[1][2]
-            self.codetype = dsm_out[1][3]
+            if dsm_out.data is None:
+                _stbar.showMessage("Failed to disassemble gecko codes into opcodes.", 3000)
+                return
+
+            self.opcodes = dsm_out.data
+            self.bapo = dsm_out.bapo
+            self.xor = dsm_out.xor
+            self.chksum = dsm_out.checksum
+            self.codetype = dsm_out.codetype
 
             self.ui.opcodesPTextEdit.setPlainText(self.opcodes)
             if self.bapo is not None:
@@ -97,18 +103,20 @@ class PyiiAsmhGui(PyiiAsmhApp):
                 self.ui.xorLineEdit.setText(self.xor)
             if self.chksum is not None:
                 self.ui.checksumLineEdit.setText(self.chksum)
-            if self.codetype == "0414":
+            if self.codetype == Write32.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(1)
-            elif self.codetype == "0616":
+            elif self.codetype == WriteString.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(2)
-            elif self.codetype == "C0":
+            elif self.codetype == AsmExecute.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(0)
-            elif self.codetype == "C2D2":
+            elif self.codetype == AsmInsert.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(3)
-            elif self.codetype == "F2F4":
+            elif self.codetype == AsmInsertLink.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(4)
-            else:
+            elif self.codetype == AsmInsertXOR.codetype:
                 self.ui.codetypeSelect.setCurrentIndex(5)
+            else:
+                self.ui.codetypeSelect.setCurrentIndex(6)
             _stbar.showMessage("Disassembled gecko codes into opcodes.", 3000)
         else:
             raise NotImplementedError(f"Action \"{action}\" is unsupported")
@@ -123,30 +131,32 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.opcodes = str(self.ui.opcodesPTextEdit.toPlainText())+"\n"
 
             if self.ui.codetypeSelect.currentText() == "04/14":
-                self.codetype = "0414"
+                self.codetype = Write32.codetype
             elif self.ui.codetypeSelect.currentText() == "06/16":
-                self.codetype = "0616"
+                self.codetype = WriteString.codetype
             elif self.ui.codetypeSelect.currentText() == "C0":
-                self.codetype = "C0"
+                self.codetype = AsmExecute.codetype
             elif self.ui.codetypeSelect.currentText() == "C2/D2":
-                self.codetype = "C2D2"
+                self.codetype = AsmInsert.codetype
+            elif self.ui.codetypeSelect.currentText() == "C4/D4":
+                self.codetype = AsmInsertLink.codetype
             elif self.ui.codetypeSelect.currentText() == "F2/F4":
-                self.codetype = "F2F4"
+                self.codetype = AsmInsertXOR.codetype
             else:
                 self.codetype = None
 
             if self.bapo == "":
-                if self.codetype not in ("C0", None):
+                if self.codetype not in {AsmExecute.codetype, None}:
                     self.bapo = "80000000"
                 else:
                     self.bapo = None
             if self.xor == "":
-                if self.codetype == "F2F4":
+                if self.codetype == AsmInsertXOR.codetype:
                     self.xor = "0000"
                 else:
                     self.xor = None
             if self.chksum == "":
-                if self.codetype == "F2F4":
+                if self.codetype == AsmInsertXOR.codetype:
                     self.chksum = "00"
                 else:
                     self.chksum = None
@@ -208,7 +218,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
                              "is designed to help users with making WiiRd ready ASM ",
                              "codes. This application supports assembling powerpc ",
                              "opcodes into WiiRd codes using any of the WiiRd ASM ",
-                             "codetypes (04/14, 06/16, C0, C2/D2, and F2/F4), or you can ",
+                             "codetypes (04/14, 06/16, C0, C2/D2, C4/D4 and F2/F4), or you can ",
                              "assemble them into raw hex. Disassembling of WiiRd codes ",
                              "or raw hex into PPC assembly opcodes is also supported. ",
                              "\n\n",
@@ -247,10 +257,12 @@ class PyiiAsmhGui(PyiiAsmhApp):
             self.ui.codetypeSelect.setCurrentIndex(0)
         elif self.prefs.get("codetype") == "C2/D2":
             self.ui.codetypeSelect.setCurrentIndex(3)
-        elif self.prefs.get("codetype") == "F2/F4":
+        elif self.prefs.get("codetype") == "C4/D4":
             self.ui.codetypeSelect.setCurrentIndex(4)
-        else:
+        elif self.prefs.get("codetype") == "F2/F4":
             self.ui.codetypeSelect.setCurrentIndex(5)
+        else:
+            self.ui.codetypeSelect.setCurrentIndex(6)
 
         self.ui.setWindowTitle("PyiiASMH 3 - untitled")
         self.ui.statusBar().showMessage("New session started.", 3000)
@@ -293,10 +305,12 @@ class PyiiAsmhGui(PyiiAsmhApp):
                         self.ui.codetypeSelect.setCurrentIndex(0)
                     elif data.get("codetype") == "C2/D2":
                         self.ui.codetypeSelect.setCurrentIndex(3)
-                    elif data.get("codetype") == "F2/F4":
+                    elif data.get("codetype") == "C4/D4":
                         self.ui.codetypeSelect.setCurrentIndex(4)
-                    else:
+                    elif data.get("codetype") == "F2/F4":
                         self.ui.codetypeSelect.setCurrentIndex(5)
+                    else:
+                        self.ui.codetypeSelect.setCurrentIndex(6)
 
                     self.save_prefs()
                     self.ui.setWindowTitle(f"PyiiASMH 3 - {self.filepath.name}")
@@ -336,6 +350,8 @@ class PyiiAsmhGui(PyiiAsmhApp):
                     data["codetype"] = "C0"
                 elif self.uiprefs.codetypeSelect.currentText() == "C2/D2":
                     data["codetype"] = "C2/D2"
+                elif self.uiprefs.codetypeSelect.currentText() == "C4/D4":
+                    data["codetype"] = "C4/D4"
                 elif self.uiprefs.codetypeSelect.currentText() == "F2/F4":
                     data["codetype"] = "F2/F4"
                 else:
@@ -380,7 +396,7 @@ class PyiiAsmhGui(PyiiAsmhApp):
                     if p.get("loadlast") in (True, False):
                         self.prefs["loadlast"] = p.get("loadlast")
 
-                    if p.get("codetype") in ("04/14", "06/16", "C0", "C2/D2", "F2/F4", "RAW"):
+                    if p.get("codetype") in {"04/14", "06/16", "C0", "C2/D2", "C4/D4" "F2/F4", "RAW"}:
                         self.prefs["codetype"] = p.get("codetype")
 
                         if p.get("codetype") == "04/14":
@@ -391,8 +407,10 @@ class PyiiAsmhGui(PyiiAsmhApp):
                             self.uiprefs.codetypeSelect.setCurrentIndex(0)
                         elif p.get("codetype") == "C2/D2":
                             self.uiprefs.codetypeSelect.setCurrentIndex(3)
-                        elif p.get("codetype") == "F2/F4":
+                        elif p.get("codetype") == "C4/D4":
                             self.uiprefs.codetypeSelect.setCurrentIndex(4)
+                        elif p.get("codetype") == "F2/F4":
+                            self.uiprefs.codetypeSelect.setCurrentIndex(5)
 
                     if p.get("formalnaming") in (True, False):
                         self.prefs["formalnaming"] = p.get("formalnaming")
